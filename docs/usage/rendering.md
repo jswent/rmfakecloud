@@ -19,8 +19,13 @@ tablet's own export (set `RMLINES_CLIP=false` to keep it).
 
 ## Limits
 
-- **Templates are not drawn.** Lined, grid and dotted page templates are not
-  reproduced; pages have a white background.
+- **Only the common templates are drawn.** Notebook pages get their page
+  template under the ink, as in the tablet's own export: "Lined heading"
+  (measured on the tablet's exports), the lined, margin, grid, grid-margin
+  and dotted templates (geometry from the tablet's template files). Other
+  templates (planners, storyboards, music, checklists, hexagons, ...) leave
+  the page white. Pages of an annotated PDF never get a template. Set
+  `RMLINES_TEMPLATES=false` for white pages.
 - **Images are not drawn.** Images placed on pages are left out.
 - **EPUB documents have no background.** The tablet lays out EPUB pages
   itself, and that layout cannot be reproduced, so the ink of an EPUB is
