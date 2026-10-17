@@ -1,0 +1,32 @@
+Guard the <execinfo.h> stack-trace code so librm_lines builds on musl.
+
+getStackTrace() uses backtrace()/backtrace_symbols() from <execinfo.h> on
+every non-Windows platform. musl libc (Alpine) has no <execinfo.h>, so the
+build fails there. Use the execinfo implementation only on glibc and Apple
+platforms and return a placeholder string elsewhere. The stack trace is
+only used for diagnostics, so nothing else changes.
+
+Local patch against librm_lines 1.4.7, to be proposed upstream.
+Tracking issue: https://github.com/jswent/rmfakecloud/issues/1
+
+diff --git a/rm_lines/src/library.cpp b/rm_lines/src/library.cpp
+index 44db74b..676e008 100644
+--- a/rm_lines/src/library.cpp
++++ b/rm_lines/src/library.cpp
+@@ -110,7 +110,7 @@ std::string getStackTrace() {
+ 
+     return std::string(buffer);
+ }
+-#else
++#elif defined(__GLIBC__) || defined(__APPLE__)
+ #include <execinfo.h>
+ 
+ std::string getStackTrace() {
+@@ -126,4 +126,7 @@ std::string getStackTrace() {
+     free(strings);
+     return stackTrace.str();
+ }
++#else
++// musl: no <execinfo.h>
++std::string getStackTrace() { return "<stack trace unavailable>"; }
+ #endif

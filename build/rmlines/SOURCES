@@ -1,0 +1,13 @@
+# Pinned sources for the librm_lines static build (read by build.sh).
+# Columns: <archive file name> <download URL> <FetchContent name or "-" for librm_lines itself>
+# Every archive must have a matching entry in SHA256SUMS. Versions mirror the
+# FetchContent_Declare() calls in librm_lines 1.4.7 CMakeLists.txt; cppcodec is
+# "GIT_TAG master" upstream and is pinned here to the commit that master
+# resolved to when 1.4.7 was tagged.
+librm_lines-1.4.7.tar.gz https://github.com/RedTTGMoss/librm_lines/archive/refs/tags/1.4.7.tar.gz -
+json-v3.12.0.tar.xz https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz JSON
+cppcodec-8019b8b580f8573c33c50372baec7039dfe5a8ce.tar.gz https://github.com/tplgy/cppcodec/archive/8019b8b580f8573c33c50372baec7039dfe5a8ce.tar.gz CPPCODEC
+utfcpp-v4.0.6.tar.gz https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.6.tar.gz UTF8CPP
+simdutf-v8.2.0.tar.gz https://github.com/simdutf/simdutf/archive/refs/tags/v8.2.0.tar.gz SIMDUTF
+freetype-VER-2-14-3.tar.gz https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-3.tar.gz FREETYPE
+harfbuzz-11.5.0.tar.gz https://github.com/harfbuzz/harfbuzz/archive/refs/tags/11.5.0.tar.gz HARFBUZZ
