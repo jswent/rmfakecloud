@@ -268,3 +268,41 @@ func inkCoverage(theirs, ours gray) coverage {
 	}
 	return c
 }
+
+// Blank pages take the size of the document's v6 pages even when they come
+// first: a Paper Pro notebook's leading blank page is not rM2-sized. The same
+// holds for a password-protected PDF exported as ink only.
+func TestBlankPageSizeFromFirstV6(t *testing.T) {
+	const ppW, ppH = 513.8, 685.1 // 1620x2160 units at 72/227
+	pp := Blob{Path: filepath.Join(fixtures, "v6/test_rmpp_edges.rm")} // SceneInfo paper size 1620x2160
+	notebook := &Source{
+		Content: []byte(`{"fileType":"notebook","formatVersion":1,"pages":["b1","b2","pp","b3"]}`),
+		Pages:   map[string]Blob{"pp": pp},
+	}
+	pdf, st := export(t, Config{}, notebook)
+	pages := readPDF(t, pdf)
+	if len(pages) != 4 || st.V6 != 1 || st.Blank != 3 {
+		t.Fatalf("%d pages, stats %+v", len(pages), *st)
+	}
+	if !strings.Contains(pages[2].content, " Do") {
+		t.Error("the v6 page moved: page 3 has no ink image")
+	}
+	for _, i := range []int{0, 1, 3} {
+		checkSize(t, i+1, pages[i], ppW, ppH)
+	}
+
+	locked := &Source{
+		Content: []byte(`{"fileType":"pdf","formatVersion":1,"pages":["b1","pp"],"redirectionPageMap":[0,1]}`),
+		Payload: bytes.NewReader(encryptPDF(t, backgroundPDF(t, 2), "secret")),
+		Pages:   map[string]Blob{"pp": pp},
+	}
+	pdf, st = export(t, Config{}, locked)
+	pages = readPDF(t, pdf)
+	if len(pages) != 2 || st.V6 != 1 {
+		t.Fatalf("%d pages, stats %+v", len(pages), *st)
+	}
+	checkSize(t, 1, pages[0], ppW, ppH)
+	if pages[1].w != ppW {
+		t.Errorf("ink-only page is %v wide, want %v", pages[1].w, ppW)
+	}
+}

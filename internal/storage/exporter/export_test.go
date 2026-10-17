@@ -446,3 +446,33 @@ func TestReadZipLimits(t *testing.T) {
 		})
 	}
 }
+
+func encryptPDF(t testing.TB, pdf []byte, user string) []byte {
+	t.Helper()
+	conf := model.NewAESConfiguration(user, "owner", 256)
+	conf.ValidationMode = model.ValidationRelaxed
+	var b bytes.Buffer
+	if err := api.Encrypt(context.Background(), bytes.NewReader(pdf), &b, conf); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+// Without any page of known size, blank pages are rM2 pages; a protected PDF
+// exports its ink on such pages.
+func TestBlankPagesDefaultSize(t *testing.T) {
+	src := &Source{
+		Content: []byte(`{"fileType":"pdf","formatVersion":1,"pages":["a","b"],"redirectionPageMap":[0,1]}`),
+		Payload: bytes.NewReader(encryptPDF(t, backgroundPDF(t, 2), "secret")),
+		Pages:   map[string]Blob{"b": {Data: fixture(t, "v5/test_v5.rm")}},
+	}
+	pdf, st := export(t, Config{Disable: true}, src)
+	out := readPDF(t, pdf)
+	if len(out) != 2 || st.V5 != 1 || st.Blank != 1 {
+		t.Fatalf("%d pages, stats %+v", len(out), *st)
+	}
+	checkSize(t, 1, out[0], 445.3, 593.8)
+	if strokes(out[0].content) || !strokes(out[1].content) {
+		t.Error("pages out of order")
+	}
+}

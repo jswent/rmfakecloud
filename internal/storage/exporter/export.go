@@ -250,16 +250,14 @@ func (e *Exporter) Export(ctx context.Context, src *Source, w io.Writer) (*Stats
 		a := assembler{e: e, doc: doc, landscape: plan.Landscape, used: map[int]bool{}, st: st}
 		for j := range jobs {
 			<-j.done
-			n := a.apply(j)
-			if n > 0 {
-				order = append(order, n)
-			}
+			a.add(j)
 		}
 		cancel()
 		wg.Wait()
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+		order = a.finish()
 		if len(order) == 0 {
 			// A notebook without pages: an empty PDF is invalid.
 			pw, ph := e.geo.nominalSize(deviceW, deviceH, plan.Landscape)
@@ -469,6 +467,55 @@ type assembler struct {
 	st        *Stats
 	// last device page seen, for the size of blank pages
 	lastW, lastH int
+	// order is the output: document page numbers in plan order. Blank
+	// pages that come before any page with a known size wait in pending
+	// (their indexes in order) for the first such page, so that a leading
+	// blank page of a Paper Pro notebook gets the Paper Pro size; they get
+	// the rM2 size only when the document has no such page.
+	order   []int
+	pending []int
+}
+
+// pendingPage is what blankPage returns for a page that waits for a size.
+const pendingPage = -1
+
+// add applies j and records its page.
+func (a *assembler) add(j *job) {
+	switch n := a.apply(j); {
+	case n == pendingPage:
+		a.pending = append(a.pending, len(a.order))
+		a.order = append(a.order, 0)
+	case n > 0:
+		a.order = append(a.order, n)
+	}
+	if a.lastW > 0 && len(a.pending) > 0 {
+		a.flush()
+	}
+}
+
+// finish adds the pages still waiting for a size and returns the order.
+func (a *assembler) finish() []int {
+	a.flush()
+	out := a.order[:0]
+	for _, n := range a.order {
+		if n > 0 {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// flush adds the pending blank pages at the size blankPage gives now.
+func (a *assembler) flush() {
+	for _, i := range a.pending {
+		n, err := a.addBlank()
+		if err != nil {
+			log.Errorf("exporter: blank page %d: %v", i+1, err)
+			continue
+		}
+		a.order[i] = n
+	}
+	a.pending = a.pending[:0]
 }
 
 // apply adds j to the document and returns its page number there.
@@ -628,9 +675,18 @@ func (a *assembler) blank(j *job) int {
 	return n
 }
 
-// blankPage appends a blank page the size of the last v6 page seen, or of an
-// rM2 page.
+// blankPage appends a blank page the size of the last v6 page seen. Before
+// the first one it returns pendingPage: add keeps the page for later.
 func (a *assembler) blankPage() (int, error) {
+	if a.lastW == 0 || a.lastH == 0 {
+		return pendingPage, nil
+	}
+	return a.addBlank()
+}
+
+// addBlank appends a blank page the size of the last v6 page seen, or of an
+// rM2 page.
+func (a *assembler) addBlank() (int, error) {
 	w, h := a.lastW, a.lastH
 	if w == 0 || h == 0 {
 		w, h = deviceW, deviceH
