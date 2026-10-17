@@ -125,6 +125,7 @@ func NewApp(cfg *config.Config) App {
 	}
 
 	fsStorage := fs.NewStorage(cfg)
+	fsStorage.Exporter() // logs whether v6 pages can be rendered
 	usrs, err := fsStorage.GetUsers()
 
 	if err != nil {

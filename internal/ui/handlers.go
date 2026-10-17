@@ -272,10 +272,12 @@ func (app *ReactAppWrapper) getDocument(c *gin.Context) {
 	log.Info("exporting ", docid, " as ", exportType)
 	backend := app.getBackend(c)
 
+	// Exports are rendered completely before this returns, so a failure is
+	// reported here, before any of the response is written.
 	reader, err := backend.Export(uid, docid, exportType, exportOption)
 	if err != nil {
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
+		log.Error("export ", docid, ": ", err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, viewmodel.NewErrorResponse("export failed"))
 		return
 	}
 

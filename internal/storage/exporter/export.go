@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"image"
 	"io"
 	"os"
@@ -124,6 +125,18 @@ func New(cfg Config) *Exporter {
 		}
 	}
 	return e
+}
+
+// cacheVersion changes when the output of the same input changes.
+const cacheVersion = 1
+
+// CacheKey identifies the settings that shape the output, so that a cached
+// export made with other settings (or before the renderer was available) is
+// not reused. It is short and safe in file names.
+func (e *Exporter) CacheKey() string {
+	h := fnv.New32a()
+	fmt.Fprintf(h, "%d|%t|%v|%d|%v|%t", cacheVersion, e.renderer != nil, e.cfg.Scale, e.cfg.Supersample, e.cfg.PtPerUnit, e.cfg.NoClip)
+	return fmt.Sprintf("%08x", h.Sum32())
 }
 
 // Close stops the render workers.

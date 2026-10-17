@@ -17,7 +17,6 @@ import (
 	"github.com/ddvk/rmfakecloud/internal/common"
 	"github.com/ddvk/rmfakecloud/internal/config"
 	"github.com/ddvk/rmfakecloud/internal/storage"
-	"github.com/ddvk/rmfakecloud/internal/storage/exporter"
 	"github.com/ddvk/rmfakecloud/internal/storage/models"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -114,35 +113,6 @@ func (fs *FileSystemStorage) ExportRmDoc(uid, docid string) (io.ReadCloser, erro
 		writer.Close()
 	}()
 	return reader, nil
-}
-
-// Export exports a document
-func (fs *FileSystemStorage) Export(uid, docid string) (r io.ReadCloser, err error) {
-	tree, err := fs.GetCachedTree(uid)
-	if err != nil {
-		return nil, err
-	}
-	doc, err := tree.FindDoc(docid)
-	if err != nil {
-		return nil, err
-	}
-	ls := fs.BlobStorage(uid)
-
-	archive, err := models.ArchiveFromHashDoc(doc, ls)
-	if err != nil {
-		return nil, err
-	}
-	reader, writer := io.Pipe()
-	go func() {
-		err = exporter.RenderRmapi(archive, writer)
-		if err != nil {
-			log.Error(err)
-			writer.Close()
-			return
-		}
-		writer.Close()
-	}()
-	return reader, err
 }
 
 // UpdateBlobDocument updates metadata
