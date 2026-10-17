@@ -473,7 +473,14 @@ type assembler struct {
 	// blank page of a Paper Pro notebook gets the Paper Pro size; they get
 	// the rM2 size only when the document has no such page.
 	order   []int
-	pending []int
+	pending []pendingBlank
+}
+
+// pendingBlank is a blank page waiting for a size: its index in order and
+// the job it stands for, whose template it gets once it is added.
+type pendingBlank struct {
+	at int
+	j  *job
 }
 
 // pendingPage is what blankPage returns for a page that waits for a size.
@@ -483,7 +490,7 @@ const pendingPage = -1
 func (a *assembler) add(j *job) {
 	switch n := a.apply(j); {
 	case n == pendingPage:
-		a.pending = append(a.pending, len(a.order))
+		a.pending = append(a.pending, pendingBlank{at: len(a.order), j: j})
 		a.order = append(a.order, 0)
 	case n > 0:
 		a.order = append(a.order, n)
@@ -507,13 +514,19 @@ func (a *assembler) finish() []int {
 
 // flush adds the pending blank pages at the size blankPage gives now.
 func (a *assembler) flush() {
-	for _, i := range a.pending {
+	for _, p := range a.pending {
 		n, err := a.addBlank()
+		if err == nil && p.j != nil && p.j.kind != kindFailed {
+			var w, h float64
+			if w, h, err = a.doc.PageSize(n); err == nil {
+				err = a.stampTemplate(p.j, n, w, h)
+			}
+		}
 		if err != nil {
-			log.Errorf("exporter: blank page %d: %v", i+1, err)
+			log.Errorf("exporter: blank page %d: %v", p.at+1, err)
 			continue
 		}
-		a.order[i] = n
+		a.order[p.at] = n
 	}
 	a.pending = a.pending[:0]
 }
@@ -633,8 +646,9 @@ func (a *assembler) place(j *job) (int, error) {
 			return j.bg, nil
 		}
 		n, err := a.blankPage()
-		if err != nil {
-			return 0, err
+		if err != nil || n == pendingPage {
+			// A pending page gets its template in flush.
+			return n, err
 		}
 		w, h, err := a.doc.PageSize(n)
 		if err != nil {
