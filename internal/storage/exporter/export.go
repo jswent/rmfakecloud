@@ -397,8 +397,7 @@ func (e *Exporter) produce(ctx context.Context, plan *content.Plan, bgPages int,
 		case pp.Format == content.FormatV5 || pp.Format == content.FormatV3:
 			data, err := blob.bytes()
 			if err == nil {
-				j.lines = rm.New()
-				err = j.lines.UnmarshalBinary(data)
+				j.lines, err = v5render.Parse(data) // bounds-checked; rmapi's UnmarshalBinary trusts the counts
 			}
 			if err != nil {
 				j.kind, j.err = kindFailed, fmt.Errorf("parse %s .rm: %w", pp.Format, err)
