@@ -15,8 +15,8 @@ import (
 // is CPU bound (Flate); a server should not use every core for one export.
 const MaxPrepareWorkers = 4
 
-// compressionLevel is the zlib level for image streams. See the benchmark
-// notes in the package tests for the trade-off against zlib.BestSpeed.
+// compressionLevel is the zlib level for image streams. BestSpeed halves the
+// encoding time but nearly doubles the output size (see bench_test.go).
 const compressionLevel = zlib.DefaultCompression
 
 // Prepared is an image already converted to compressed PDF image streams:
