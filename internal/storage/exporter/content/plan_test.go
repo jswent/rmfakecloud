@@ -67,10 +67,16 @@ func TestBuildPlan(t *testing.T) {
 			pages:       []PlanPage{{ID: "a", Background: 1}, {ID: "b", Background: 2}},
 		},
 		{
-			name:        "no identity fallback when the payload count differs",
+			name:        "more pages than the payload: pair up to the payload's count",
 			json:        `{"fileType":"pdf","originalPageCount":2,"pageCount":3,"pages":["a","b","c"]}`,
 			payloadType: "pdf",
-			pages:       []PlanPage{{ID: "a"}, {ID: "b"}, {ID: "c"}},
+			pages:       []PlanPage{{ID: "a", Background: 1}, {ID: "b", Background: 2}, {ID: "c"}},
+		},
+		{
+			name:        "fewer pages than the payload: pair every page",
+			json:        `{"fileType":"pdf","pageCount":4,"pages":["a","b"]}`,
+			payloadType: "pdf",
+			pages:       []PlanPage{{ID: "a", Background: 1}, {ID: "b", Background: 2}},
 		},
 		{
 			name:        "no identity fallback when the map says every page is inserted",

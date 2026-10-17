@@ -42,8 +42,12 @@ type Plan struct {
 //     annotate payload page i+1, provided the page count matches the payload
 //     (originalPageCount when known, else pageCount; neither known counts as
 //     a match). This is how formatVersion 1 documents without a
-//     redirectionPageMap behaved, and how rmapi pairs pages. The orchestrator
-//     still has to drop backgrounds past the end of the actual PDF.
+//     redirectionPageMap behaved, and how rmapi pairs pages. When the counts
+//     differ, pages are still paired one-to-one up to the shorter count
+//     (the remaining pages get no background) and a warning is logged: an
+//     approximate pairing shows the user their ink on the PDF, where blank
+//     pages would hide it. The orchestrator still has to drop backgrounds
+//     past the end of the actual PDF.
 func BuildPlan(c *Content, rmFormats map[string]Format) (*Plan, error) {
 	if c == nil {
 		return nil, errors.New("content: BuildPlan: nil content")
@@ -57,9 +61,9 @@ func BuildPlan(c *Content, rmFormats map[string]Format) (*Plan, error) {
 		plan.PayloadType = c.FileType
 	}
 
-	identity := plan.PayloadType == "pdf" && !c.HasRedirection && identityApplies(c)
-	if identity {
-		log.Debug("content: no redirection in .content; pairing page i with PDF page i")
+	identity := 0 // pages 1..identity are paired with PDF pages 1..identity
+	if plan.PayloadType == "pdf" && !c.HasRedirection {
+		identity = identityCount(c)
 	}
 
 	known := make(map[string]bool, len(c.Pages))
@@ -76,7 +80,7 @@ func BuildPlan(c *Content, rmFormats map[string]Format) (*Plan, error) {
 		if !ok {
 			pp.Format = FormatUnknown
 		}
-		if identity {
+		if i < identity {
 			pp.Background = i + 1
 		}
 		plan.Pages = append(plan.Pages, pp)
@@ -89,19 +93,30 @@ func BuildPlan(c *Content, rmFormats map[string]Format) (*Plan, error) {
 	return plan, nil
 }
 
-func identityApplies(c *Content) bool {
+// identityCount is the number of leading pages paired with PDF page i when
+// the .content has no redirection (see BuildPlan).
+func identityCount(c *Content) int {
 	n := len(c.Pages)
 	if n == 0 {
-		return false
+		return 0
 	}
 	for _, p := range c.Pages {
 		if p.Redir != 0 {
-			return false
+			return 0
 		}
 	}
 	payload := c.OriginalPageCount
 	if payload <= 0 {
 		payload = c.PageCount
 	}
-	return payload <= 0 || payload == n
+	switch {
+	case payload <= 0 || payload == n:
+		log.Debug("content: no redirection in .content; pairing page i with PDF page i")
+		return n
+	default:
+		m := min(n, payload)
+		log.Warnf("content: no redirection in .content and %d pages for a PDF of %d; pairing the first %d pages with PDF pages 1-%d, the pairing may be off",
+			n, payload, m, m)
+		return m
+	}
 }
