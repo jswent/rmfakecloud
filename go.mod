@@ -19,6 +19,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/studio-b12/gowebdav v0.9.0
 	golang.org/x/crypto v0.57.0
+	golang.org/x/sync v0.23.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

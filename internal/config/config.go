@@ -90,6 +90,7 @@ const (
 	envRmlinesScale       = "RMLINES_SCALE"
 	envRmlinesSupersample = "RMLINES_SUPERSAMPLE"
 	envRmlinesTimeout     = "RMLINES_TIMEOUT"
+	envRmlinesDocTimeout  = "RMLINES_DOC_TIMEOUT"
 	envRmlinesPtPerPx     = "RMLINES_PT_PER_PX"
 	envRmlinesClip        = "RMLINES_CLIP"
 	envRmlinesTemplates   = "RMLINES_TEMPLATES"
@@ -108,6 +109,8 @@ type RenderConfig struct {
 	Supersample int
 	// Timeout bounds the rendering of one page.
 	Timeout time.Duration
+	// DocTimeout bounds the export of one document (default 10 minutes).
+	DocTimeout time.Duration
 	// PtPerPx is the size of a page unit in PDF points.
 	PtPerPx float64
 	// NoClip keeps ink outside the page width and above the page.
@@ -352,19 +355,8 @@ func renderFromEnv() RenderConfig {
 			log.Warnf("%s=%q ignored: want 1 to 8", envRmlinesSupersample, v)
 		}
 	}
-	if v := os.Getenv(envRmlinesTimeout); v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			if secs, err2 := strconv.Atoi(v); err2 == nil {
-				d, err = time.Duration(secs)*time.Second, nil
-			}
-		}
-		if err == nil && d > 0 {
-			r.Timeout = d
-		} else {
-			log.Warnf("%s=%q ignored: want a duration such as 30s", envRmlinesTimeout, v)
-		}
-	}
+	r.Timeout = envDuration(envRmlinesTimeout, "30s")
+	r.DocTimeout = envDuration(envRmlinesDocTimeout, "10m")
 	if v := os.Getenv(envRmlinesPtPerPx); v != "" {
 		if f, ok := parseRatio(v); ok && f > 0.05 && f < 5 {
 			r.PtPerPx = f
@@ -373,6 +365,26 @@ func renderFromEnv() RenderConfig {
 		}
 	}
 	return r
+}
+
+// envDuration reads a positive duration ("30s", "2m") or a number of seconds;
+// 0 when unset or invalid.
+func envDuration(name, example string) time.Duration {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		if secs, err2 := strconv.Atoi(v); err2 == nil {
+			d, err = time.Duration(secs)*time.Second, nil
+		}
+	}
+	if err != nil || d <= 0 {
+		log.Warnf("%s=%q ignored: want a duration such as %s", name, v, example)
+		return 0
+	}
+	return d
 }
 
 func envBool(name string, def bool) bool {

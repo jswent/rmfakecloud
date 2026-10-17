@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"io"
 
 	"github.com/ddvk/rmfakecloud/internal/app/hub"
@@ -22,11 +23,11 @@ func (b *backend15) GetDocumentTree(uid string) (tree *viewmodel.DocumentTree, e
 
 	return viewmodel.DocTreeFromHashTree(hashTree), nil
 }
-func (b *backend15) Export(uid, docid, exporttype string, opt storage.ExportOption) (r io.ReadCloser, err error) {
+func (b *backend15) Export(ctx context.Context, uid, docid, exporttype string, opt storage.ExportOption) (r io.ReadCloser, err error) {
 	if exporttype == "rmdoc" {
 		return b.blobHandler.ExportRmDoc(uid, docid)
 	}
-	r, err = b.blobHandler.Export(uid, docid)
+	r, err = b.blobHandler.Export(ctx, uid, docid)
 	return
 }
 

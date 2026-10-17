@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -23,7 +24,7 @@ type DocumentStorer interface {
 	StoreDocument(uid, docid string, s io.ReadCloser) error
 	RemoveDocument(uid, docid string) error
 	GetDocument(uid, docid string) (io.ReadCloser, error)
-	ExportDocument(uid, docid, outputType string, exportOption ExportOption) (io.ReadCloser, error)
+	ExportDocument(ctx context.Context, uid, docid, outputType string, exportOption ExportOption) (io.ReadCloser, error)
 
 	GetStorageURL(uid, docid string) (string, time.Time, error)
 	CreateDocument(uid, name, parent string, stream io.Reader) (doc *Document, err error)

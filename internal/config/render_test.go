@@ -15,11 +15,12 @@ func TestRenderFromEnv(t *testing.T) {
 	t.Setenv(envRmlinesScale, "1.5")
 	t.Setenv(envRmlinesSupersample, "1")
 	t.Setenv(envRmlinesTimeout, "45")
+	t.Setenv(envRmlinesDocTimeout, "15m")
 	t.Setenv(envRmlinesPtPerPx, "72/226")
 	t.Setenv(envRmlinesClip, "false")
 	t.Setenv(envRmlinesTemplates, "false")
 	r := renderFromEnv()
-	want := RenderConfig{Disable: true, Workers: 3, Scale: 1.5, Supersample: 1, Timeout: 45 * time.Second, PtPerPx: 72.0 / 226, NoClip: true, NoTemplates: true}
+	want := RenderConfig{Disable: true, Workers: 3, Scale: 1.5, Supersample: 1, Timeout: 45 * time.Second, DocTimeout: 15 * time.Minute, PtPerPx: 72.0 / 226, NoClip: true, NoTemplates: true}
 	if r != want {
 		t.Fatalf("got %+v, want %+v", r, want)
 	}
@@ -32,7 +33,7 @@ func TestRenderFromEnv(t *testing.T) {
 
 	for _, bad := range [][2]string{
 		{envRmlinesWorkers, "0"}, {envRmlinesScale, "x"}, {envRmlinesSupersample, "9"},
-		{envRmlinesTimeout, "-1s"}, {envRmlinesPtPerPx, "72/0"}, {envRmlinesDisable, "maybe"},
+		{envRmlinesTimeout, "-1s"}, {envRmlinesDocTimeout, "soon"}, {envRmlinesPtPerPx, "72/0"}, {envRmlinesDisable, "maybe"},
 	} {
 		t.Run(bad[0], func(t *testing.T) {
 			t.Setenv(bad[0], bad[1])
@@ -53,6 +54,10 @@ func TestRenderFromEnv(t *testing.T) {
 			case envRmlinesTimeout:
 				if r.Timeout != 0 {
 					t.Errorf("timeout %v", r.Timeout)
+				}
+			case envRmlinesDocTimeout:
+				if r.DocTimeout != 0 {
+					t.Errorf("doc timeout %v", r.DocTimeout)
 				}
 			case envRmlinesPtPerPx:
 				if r.PtPerPx != 0 {

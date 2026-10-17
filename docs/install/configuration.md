@@ -24,6 +24,7 @@ The web interface exports documents as PDF. Pages written with tablet software 3
 | `RMLINES_SCALE`        | Image pixels per page unit. Higher is sharper and larger. Default: `1.0` |
 | `RMLINES_SUPERSAMPLE`  | Render at this many times the resolution and scale down, for smooth edges; `1` disables. Default: `2` |
 | `RMLINES_TIMEOUT`      | Time limit for one page, as a duration (`30s`, `2m`) or in seconds. A page over the limit exports blank. Default: `30s` |
+| `RMLINES_DOC_TIMEOUT`  | Time limit for exporting one document, as a duration (`10m`) or in seconds. An export over the limit fails. Default: `10m` |
 | `RMLINES_PT_PER_PX`    | PDF points per page unit, as a number or a ratio. The default reproduces the page sizes of the tablet's own PDF export on the reMarkable 2, Paper Pro and Paper Pro Move. Default: `72/227` |
 | `RMLINES_CLIP`         | `false` keeps ink that was written outside the page width or above the page; the tablet cuts it off. For debugging. Default: `true` |
 | `RMLINES_TEMPLATES`    | `false` leaves notebook pages white instead of drawing their page template (lined, grid, dots) under the ink, as the tablet's own export does. Default: `true` |

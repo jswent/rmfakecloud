@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"io"
 	"io/fs"
 	"net/http"
@@ -22,7 +23,7 @@ import (
 
 type backend interface {
 	GetDocumentTree(uid string) (tree *viewmodel.DocumentTree, err error)
-	Export(uid, doc, exporttype string, opt storage.ExportOption) (stream io.ReadCloser, err error)
+	Export(ctx context.Context, uid, doc, exporttype string, opt storage.ExportOption) (stream io.ReadCloser, err error)
 	CreateDocument(uid, name, parent string, stream io.Reader) (doc *storage.Document, err error)
 	CreateFolder(uid, name, parent string) (doc *storage.Document, err error)
 	UpdateDocument(uid, docID, name, parent string) (err error)
@@ -37,7 +38,7 @@ type documentHandler interface {
 	CreateDocument(uid, name, parent string, stream io.Reader) (doc *storage.Document, err error)
 	CreateFolder(uid, name, parent string) (doc *storage.Document, err error)
 	GetAllMetadata(uid string) (documents []*messages.RawMetadata, err error)
-	ExportDocument(uid, id, format string, exportOption storage.ExportOption) (stream io.ReadCloser, err error)
+	ExportDocument(ctx context.Context, uid, id, format string, exportOption storage.ExportOption) (stream io.ReadCloser, err error)
 	GetMetadata(uid, id string) (*messages.RawMetadata, error)
 	UpdateMetadata(uid string, r *messages.RawMetadata) error
 	RemoveDocument(uid, docid string) error
@@ -49,7 +50,7 @@ type blobHandler interface {
 	UpdateBlobDocument(uid, docID, name, parent string) (err error)
 	DeleteBlobDocument(uid, docID string) (err error)
 	CreateBlobFolder(uid, name, parent string) (doc *storage.Document, err error)
-	Export(uid, docid string) (io.ReadCloser, error)
+	Export(ctx context.Context, uid, docid string) (io.ReadCloser, error)
 	ExportRmDoc(uid, docid string) (io.ReadCloser, error)
 }
 
