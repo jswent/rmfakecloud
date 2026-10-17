@@ -123,6 +123,9 @@ func (c *client) render(ctx context.Context, rmPath string, opts Options, debug 
 		// page, so give the page one fresh worker.
 		res, err, _ = c.attempt(ctx, s, req, timeout)
 	}
+	if err != nil && !errors.Is(err, ErrClosed) && c.isClosed() {
+		err = fmt.Errorf("%w: %w", ErrClosed, err) // Close killed the worker
+	}
 	return res, err
 }
 
@@ -265,10 +268,17 @@ func (s *slot) reapIdle() {
 }
 
 // ensureProc marks the slot busy and returns a live worker, spawning one if
-// needed. reused reports whether the worker served an earlier request.
+// needed. reused reports whether the worker served an earlier request. After
+// Close it returns ErrClosed: Close stops the workers it finds in the slots,
+// so a worker spawned later (by the retry of a request whose worker Close
+// killed) would outlive the client. The check is made under s.mu, which
+// Close takes for every slot after setting closed.
 func (s *slot) ensureProc() (p *proc, reused bool, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.c.isClosed() {
+		return nil, false, ErrClosed
+	}
 	s.busy = true
 	if s.idle != nil {
 		s.idle.Stop()
