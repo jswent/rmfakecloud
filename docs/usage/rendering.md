@@ -12,7 +12,7 @@ highlights drawn on them. This page describes what is drawn and what is not.
 | Typed text (software 3.x) | Rendered with the pages, in the library's built-in fonts (Karla, Libre Baskerville), not the tablet's |
 | Highlighter and text highlights | Blended over the page (multiply), so text underneath stays readable |
 | Annotated PDFs | Ink is drawn onto the original PDF pages; pages added on the tablet are inserted, pages deleted on the tablet are left out, and pages are in the order shown on the tablet |
-| Notebooks | One page per notebook page, at the size of the tablet's own PDF export: about 445 x 594 pt (reMarkable 1 and 2), 514 x 685 pt (Paper Pro), 260 x 463 pt (Paper Pro Move). Pages that were extended downwards on the tablet are exported at their full length |
+| Notebooks | One page per notebook page, at the size of the tablet's own PDF export: about 445 x 594 pt (reMarkable 1 and 2), 514 x 685 pt (Paper Pro), 260 x 463 pt (Paper Pro Move). Pages that were extended downwards on the tablet are exported at their full length. A page written with software 3.x is one opaque image (template, ink and highlights composited by the server), which viewers decode much faster than a transparent ink image; pages without ink keep their template as vector lines |
 
 Ink written outside the page width, or above the page, is cut off, as in the
 tablet's own export (set `RMLINES_CLIP=false` to keep it).

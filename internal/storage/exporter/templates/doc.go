@@ -1,6 +1,7 @@
 // Package templates draws reMarkable page templates (lined, grid and dot
-// rules) as PDF content streams, to go under the ink of exported notebook
-// pages as the tablet's own PDF export does.
+// rules) as PDF content streams (Render) and onto grey images (Paint), to
+// go under the ink of exported notebook pages as the tablet's own PDF
+// export does.
 //
 // Render takes the template name as the device stores it in the .content
 // file ("P Lined heading", "P Grid medium", "LS Lines small", ...) and the

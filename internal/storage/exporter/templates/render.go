@@ -103,6 +103,23 @@ func pageFor(w, h float64, landscape bool) page {
 // draw appends the operators of s on pg.
 func draw(b *strings.Builder, s Spec, pg page) {
 	b.WriteString(num(RuleGrey) + " G " + num(RuleWidth) + " w 2 J 0 j\n")
+	geometry(s, pg,
+		func(x0, y0, x1, y1 float64) { line(b, x0, y0, x1, y1) },
+		func(x, y float64) { b.WriteString(num(x) + " " + num(y) + " 1 1 re\n") })
+	switch s.Kind {
+	case Lines, Grid:
+		b.WriteString("S\n")
+	case Dots:
+		// Filled black, stroked with the default rule style: what the
+		// template file asks for (fillColor #000000, strokeWidth 1).
+		b.WriteString("0 g 1 w B\n")
+	}
+}
+
+// geometry enumerates the primitives of s on pg, in page units: rule
+// segments (RuleWidth wide, square caps) and the 1x1 squares of a Dots
+// template. Render strokes them; Paint rasterises them.
+func geometry(s Spec, pg page, rule func(x0, y0, x1, y1 float64), dot func(x, y float64)) {
 	switch s.Kind {
 	case Lines:
 		if s.Heading > 0 {
@@ -110,7 +127,7 @@ func draw(b *strings.Builder, s Spec, pg page) {
 			if pg.mobile() && s.HeadingXMobile > 0 {
 				x = s.HeadingXMobile
 			}
-			line(b, x, s.Heading, pg.w-x, s.Heading)
+			rule(x, s.Heading, pg.w-x, s.Heading)
 		}
 		x0, x1 := 0.0, pg.w
 		if s.Canvas {
@@ -121,13 +138,12 @@ func draw(b *strings.Builder, s Spec, pg page) {
 			first = s.FirstYMobile
 		}
 		for _, y := range rules(first, s.Spacing, 0, pg.h) {
-			line(b, x0, y, x1, y)
+			rule(x0, y, x1, y)
 		}
 		if s.HasMargin {
 			x := pg.x(s.Margin)
-			line(b, x, 0, x, pg.h)
+			rule(x, 0, x, pg.h)
 		}
-		b.WriteString("S\n")
 	case Grid:
 		col := pg.x(s.column(pg))
 		x0 := 0.0
@@ -135,22 +151,18 @@ func draw(b *strings.Builder, s Spec, pg page) {
 			x0 = col
 		}
 		for _, y := range rules(0, s.Spacing, 0, pg.h) {
-			line(b, x0, y, pg.w, y)
+			rule(x0, y, pg.w, y)
 		}
 		for _, x := range columns(col, s.Spacing, x0, s.RightOnly, pg.w) {
-			line(b, x, 0, x, pg.h)
+			rule(x, 0, x, pg.h)
 		}
-		b.WriteString("S\n")
 	case Dots:
 		xs := columns(pg.x(s.column(pg)), s.Spacing, 0, false, pg.w)
 		for _, y := range rules(0, s.Spacing, 0, pg.h) {
 			for _, x := range xs {
-				b.WriteString(num(x) + " " + num(y) + " 1 1 re\n")
+				dot(x, y)
 			}
 		}
-		// Filled black, stroked with the default rule style: what the
-		// template file asks for (fillColor #000000, strokeWidth 1).
-		b.WriteString("0 g 1 w B\n")
 	}
 }
 

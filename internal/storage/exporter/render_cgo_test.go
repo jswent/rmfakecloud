@@ -4,13 +4,20 @@ package exporter
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ddvk/rmfakecloud/internal/storage/exporter/inkpdf"
+	"github.com/ddvk/rmfakecloud/internal/storage/exporter/templates"
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
 // outDir is where the tagged tests leave their exports for inspection.
@@ -306,4 +313,206 @@ func TestBlankPageSizeFromFirstV6(t *testing.T) {
 	if pages[1].w != ppW {
 		t.Errorf("ink-only page is %v wide, want %v", pages[1].w, ppW)
 	}
+}
+
+// Notebook pages are one opaque image each (no soft mask, grey when the
+// ink is grey), and that image shows the same page as the layered
+// construction it replaces: template as vectors, transparent ink over it,
+// highlights multiplied on top. The two are rendered with poppler at the
+// image's own resolution and compared pixel by pixel.
+func TestFlattenedPageMatchesLayered(t *testing.T) {
+	e := New(Config{})
+	defer e.Close()
+	if e.renderer == nil {
+		t.Skip("no renderer")
+	}
+	const tmpl = "P Grid medium"
+	src := &Source{
+		Content: []byte(`{"fileType":"notebook","formatVersion":2,"orientation":"portrait","pageCount":2,"cPages":{"pages":[` +
+			cPageT("hl", "ba", -1, tmpl) + "," + cPageT("tools", "bb", -1, tmpl) + `]}}`),
+		Pages: map[string]Blob{
+			"hl":    {Path: filepath.Join(fixtures, "v6/Wikipedia_highlighted_p1.rm")},
+			"tools": {Path: filepath.Join(fixtures, "v6/Test_all_tools.rm")},
+		},
+	}
+	var flat bytes.Buffer
+	st, err := e.Export(t.Context(), src, &flat)
+	if err != nil || st.V6 != 2 {
+		t.Fatalf("export: %v, stats %+v", err, st)
+	}
+	os.WriteFile(filepath.Join(outDir(t), "flattened.pdf"), flat.Bytes(), 0o644)
+	for i, img := range pageImages(t, flat.Bytes()) {
+		if len(img) != 1 || img[0].smask || img[0].cs != "DeviceGray" {
+			t.Errorf("page %d images: %+v, want one opaque DeviceGray image", i+1, img)
+		}
+	}
+
+	// The layered pages, built from the same renders.
+	doc, err := inkpdf.NewDocument()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"hl", "tools"} {
+		res, err := e.render(t.Context(), src.Pages[id].Path, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frame := e.geo.notebookFrame(res)
+		r := e.geo.cropRect(res.Ink.Rect, res.Extent, frame)
+		ink, hl := crop(res.Ink, r), crop(res.Highlights, r)
+		w, h := e.geo.pt(frame.R-frame.L), e.geo.pt(frame.B-frame.T)
+		n, err := doc.AddBlankPage(w, h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c, res, ok := templates.RenderScaled(tmpl, w, h, false, e.geo.ppu); ok {
+			if err := doc.StampContent(n, c, res); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if hasAlpha(ink) {
+			if err := doc.StampImage(n, ink, inkpdf.Rect{W: w, H: h}, inkpdf.BlendNormal); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if hl != nil && hasAlpha(hl) {
+			if err := doc.StampImage(n, hl, inkpdf.Rect{W: w, H: h}, inkpdf.BlendMultiply); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	var layered bytes.Buffer
+	if err := doc.Write(&layered); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(outDir(t), "layered.pdf"), layered.Bytes(), 0o644)
+
+	if _, err := exec.LookPath("pdftoppm"); err != nil {
+		t.Skip("pdftoppm not on PATH; pages not compared")
+	}
+	dpi := int(math.Round(e.cfg.Scale / e.geo.ppu * 72))
+	a := rasteriseRGB(t, filepath.Join(outDir(t), "flattened.pdf"), 2, dpi)
+	b := rasteriseRGB(t, filepath.Join(outDir(t), "layered.pdf"), 2, dpi)
+	for i := range a {
+		if a[i].w != b[i].w || a[i].h != b[i].h {
+			t.Fatalf("page %d: %dx%d vs %dx%d", i+1, a[i].w, a[i].h, b[i].w, b[i].h)
+		}
+		mean, over := nearDiff(a[i], b[i])
+		t.Logf("page %d: mean difference %.3f levels, %.4f%% of samples differ by more than 48 (within 1 px)", i+1, mean, 100*over)
+		// Poppler snaps the vector rules to whole pixel rows by its own
+		// rounding and resamples the ink image slightly differently; both
+		// vanish within a pixel (measured: mean 0.3, far under 0.01%). A
+		// missing template leaves every rule sample without a match (far
+		// 1% and more), and a wrong highlight blend hides or shows text.
+		if mean > 0.6 || over > 0.0005 {
+			t.Errorf("page %d: flattened page differs from the layered page", i+1)
+		}
+	}
+}
+
+// nearDiff compares two renders of a page, each sample against the best
+// matching sample within one pixel in the other, in both directions. It
+// returns the mean difference in levels and the fraction of samples that
+// differ by more than 48 levels.
+func nearDiff(a, b rgb) (mean, over float64) {
+	var sum, n, far int
+	for _, pair := range [][2]rgb{{a, b}, {b, a}} {
+		p, q := pair[0], pair[1]
+		for y := 0; y < p.h; y++ {
+			for x := 0; x < p.w; x++ {
+				for c := 0; c < 3; c++ {
+					v := int(p.pix[(y*p.w+x)*3+c])
+					best := 256
+					for dy := -1; dy <= 1 && best > 0; dy++ {
+						for dx := -1; dx <= 1; dx++ {
+							xx, yy := x+dx, y+dy
+							if xx < 0 || yy < 0 || xx >= q.w || yy >= q.h {
+								continue
+							}
+							d := v - int(q.pix[(yy*q.w+xx)*3+c])
+							if d < 0 {
+								d = -d
+							}
+							best = min(best, d)
+						}
+					}
+					sum += best
+					n++
+					if best > 48 {
+						far++
+					}
+				}
+			}
+		}
+	}
+	return float64(sum) / float64(n), float64(far) / float64(n)
+}
+
+// pdfImage describes an image XObject of a page.
+type pdfImage struct {
+	cs    string
+	smask bool
+}
+
+// pageImages lists the image XObjects of every page of pdf.
+func pageImages(t testing.TB, pdf []byte) [][]pdfImage {
+	t.Helper()
+	ctx, err := api.ReadContext(context.Background(), bytes.NewReader(pdf), model.NewStatelessConfiguration())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := make([][]pdfImage, ctx.PageCount)
+	for i := range out {
+		d, _, _, err := ctx.PageDict(context.Background(), i+1, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, _ := ctx.DereferenceDict(d["Resources"])
+		xo, _ := ctx.DereferenceDict(res["XObject"])
+		for _, o := range xo {
+			sd, _, err := ctx.DereferenceStreamDict(o)
+			if err != nil || sd == nil || sd.Dict.NameEntry("Subtype") == nil || *sd.Dict.NameEntry("Subtype") != "Image" {
+				continue
+			}
+			img := pdfImage{smask: sd.Dict["SMask"] != nil}
+			if cs := sd.Dict.NameEntry("ColorSpace"); cs != nil {
+				img.cs = string(*cs)
+			}
+			out[i] = append(out[i], img)
+		}
+	}
+	return out
+}
+
+// rgb is an 8-bit RGB page.
+type rgb struct {
+	w, h int
+	pix  []byte
+}
+
+// rasteriseRGB renders every page of pdf in colour at dpi.
+func rasteriseRGB(t testing.TB, pdf string, n, dpi int) []rgb {
+	t.Helper()
+	dir := t.TempDir()
+	cmd := exec.Command("pdftoppm", "-r", strconv.Itoa(dpi), pdf, filepath.Join(dir, "p"))
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("pdftoppm %s: %v %s", pdf, err, b)
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "p-*.ppm"))
+	if len(files) != n {
+		t.Fatalf("%s: %d pages rendered, want %d", pdf, len(files), n)
+	}
+	out := make([]rgb, n)
+	for i, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w, h, max int
+		if _, err := fmt.Sscan(string(b[:min(len(b), 64)]), new(string), &w, &h, &max); err != nil || max != 255 || w*h*3 > len(b) {
+			t.Fatalf("%s: not an 8-bit PPM: %v", f, err)
+		}
+		out[i] = rgb{w, h, b[len(b)-w*h*3:]}
+	}
+	return out
 }

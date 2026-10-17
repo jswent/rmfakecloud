@@ -135,7 +135,7 @@ func New(cfg Config) *Exporter {
 }
 
 // cacheVersion changes when the output of the same input changes.
-const cacheVersion = 2
+const cacheVersion = 3
 
 // CacheKey identifies the settings that shape the output, so that a cached
 // export made with other settings (or before the renderer was available) is
@@ -177,7 +177,10 @@ type job struct {
 	pageW, pageH int
 	ext          rmlines.Extent // what the images cover
 	frame        rmlines.Extent // notebook page in page units
-	ink, hl      *inkpdf.Prepared
+	// ink is the page image: on a notebook page the whole page, opaque
+	// (flatten.go); on a PDF page the transparent ink, with hl the
+	// highlights to multiply over it. Both nil when nothing was drawn.
+	ink, hl *inkpdf.Prepared
 	// v5
 	lines *rm.Rm
 
@@ -376,17 +379,30 @@ func (e *Exporter) produce(ctx context.Context, plan *content.Plan, bgPages int,
 				r := e.geo.cropRect(ink.Rect, res.Extent, j.frame)
 				ink, hl = crop(ink, r), crop(hl, r)
 			}
+			if hl != nil && !hasAlpha(hl) {
+				hl = nil
+			}
+			inked := hasAlpha(ink)
+			if !inked && hl == nil {
+				// Nothing drawn: a blank page (with its template).
+				break
+			}
 			async = true
 			sem <- struct{}{}
 			go func() {
 				defer func() { <-sem; close(j.done) }()
-				if hasAlpha(ink) {
+				if j.bg == 0 {
+					// A notebook page: one opaque image of the whole page.
+					flatten(ink, hl, e.pageBackground(j, ink.Rect, plan.Landscape))
+					hl, inked = nil, true
+				}
+				if inked {
 					if j.ink, j.err = inkpdf.PrepareImage(ink); j.err != nil {
 						j.kind = kindFailed
 						return
 					}
 				}
-				if hl != nil && hasAlpha(hl) {
+				if hl != nil {
 					if j.hl, j.err = inkpdf.PrepareImage(hl); j.err != nil {
 						j.kind = kindFailed
 					}
@@ -589,34 +605,16 @@ func (a *assembler) place(j *job) (int, error) {
 		return j.bg, nil
 	case j.kind == kindV6:
 		w, h := geo.pt(j.frame.R-j.frame.L), geo.pt(j.frame.B-j.frame.T)
-		tmpl, res, drawn := a.template(j, w, h)
-		var n int
-		var err error
-		if j.ink != nil && !drawn {
-			n, err = a.doc.AddPreparedPage(j.ink, w, h)
-		} else {
-			n, err = a.doc.AddBlankPage(w, h)
+		if j.ink != nil {
+			// Template, ink and highlights flattened into one opaque image
+			// that is the page (see flatten.go).
+			return a.doc.AddPreparedPage(j.ink, w, h)
 		}
+		n, err := a.doc.AddBlankPage(w, h)
 		if err != nil {
 			return 0, err
 		}
-		if drawn {
-			// Template first, then the ink over it.
-			if err := a.doc.StampContent(n, tmpl, res); err != nil {
-				return n, err
-			}
-			if j.ink != nil {
-				if err := a.doc.StampPrepared(n, j.ink, inkpdf.Rect{X: 0, Y: 0, W: w, H: h}, inkpdf.BlendNormal); err != nil {
-					return n, err
-				}
-			}
-		}
-		if j.hl != nil {
-			if err := a.doc.StampPrepared(n, j.hl, inkpdf.Rect{X: 0, Y: 0, W: w, H: h}, inkpdf.BlendMultiply); err != nil {
-				return n, err
-			}
-		}
-		return n, nil
+		return n, a.stampTemplate(j, n, w, h)
 	case j.kind == kindV5:
 		n := j.bg
 		var vw, vh float64
