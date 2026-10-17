@@ -2,11 +2,14 @@ package v5render
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,7 +17,7 @@ import (
 	"github.com/juruen/rmapi/encoding/rm"
 )
 
-var update = flag.Bool("update", false, "rewrite the golden files in testdata/")
+var update = flag.Bool("update", false, "rewrite the golden files in testdata/ and print the digest table")
 
 const fixtureDir = "../../../../testdata/rm/v5"
 
@@ -42,7 +45,30 @@ var sizes = []sizeCase{
 	{"1000x500", 1000, 500},
 }
 
+// goldenFiles are compared byte for byte with testdata/<name>.txt. The
+// other cases are checked against goldenDigests, the SHA-256 of the stream,
+// to keep testdata small. With -update the files are rewritten and the
+// digest table is printed for pasting here.
+var goldenFiles = map[string]bool{
+	"test_v5_default_portrait":  true,
+	"test_v5_default_landscape": true,
+}
+
+var goldenDigests = map[string]string{
+	"test_v3_1000x500_landscape": "5106277ea5a8b143ef738b387cab165b3410c5144e0b2be7f9114d244eb129b6",
+	"test_v3_1000x500_portrait":  "5106277ea5a8b143ef738b387cab165b3410c5144e0b2be7f9114d244eb129b6",
+	"test_v3_500x1000_landscape": "1eb21f77038b4ce10d011fb59150f54a8d0f15e7d62e3d97513421a6a9a11c5e",
+	"test_v3_500x1000_portrait":  "00c5ee1962b27a459b07b3ab667bdf1129d3650ce01daf5fdffcf0ac080f6427",
+	"test_v3_default_landscape":  "09fa7f918725285fcd140646b617fd5151ef9aeadc90f2e2b2492a12b020f45a",
+	"test_v3_default_portrait":   "f1e0c290c6939f1a6254782a9fbbe6aaabcaef66a5b89ed9b2566272d6bded43",
+	"test_v5_1000x500_landscape": "49e42ae98460445474d848ee9192788553fa5a0fdc37fe38a3bd1039b0ff4f52",
+	"test_v5_1000x500_portrait":  "49e42ae98460445474d848ee9192788553fa5a0fdc37fe38a3bd1039b0ff4f52",
+	"test_v5_500x1000_landscape": "5d161867ce43f4c47d750b0ab6df070b1be8e83f0328fc2f4dc6179e623665e0",
+	"test_v5_500x1000_portrait":  "cfb8c5383d5c200aa03ffeb812295fcace066fbb10fdcc80d2b6068946121085",
+}
+
 func TestGolden(t *testing.T) {
+	var digestTable []string
 	for _, fixture := range []string{"test_v3.rm", "test_v5.rm"} {
 		page := load(t, fixture)
 		for _, sz := range sizes {
@@ -58,6 +84,24 @@ func TestGolden(t *testing.T) {
 						t.Fatal(err)
 					}
 					checkStream(t, out.Content)
+					again, _ := Render(page, Options{PageW: sz.w, PageH: sz.h, Landscape: landscape})
+					if !bytes.Equal(out.Content, again.Content) {
+						t.Error("output is not deterministic")
+					}
+
+					if !goldenFiles[name] {
+						sum := sha256.Sum256(out.Content)
+						got := hex.EncodeToString(sum[:])
+						if *update {
+							digestTable = append(digestTable, fmt.Sprintf("\t%q: %q,", name, got))
+							return
+						}
+						if want, ok := goldenDigests[name]; !ok || got != want {
+							t.Errorf("digest %s, want %s (rerun with -update after checking)", got, want)
+						}
+						return
+					}
+
 					golden := filepath.Join("testdata", name+".txt")
 					if *update {
 						if err := os.WriteFile(golden, out.Content, 0o644); err != nil {
@@ -67,18 +111,18 @@ func TestGolden(t *testing.T) {
 					}
 					want, err := os.ReadFile(golden)
 					if err != nil {
-						t.Fatalf("%v (run go test -tags ci ./internal/storage/exporter/v5render -update)", err)
+						t.Fatalf("%v (run go test ./internal/storage/exporter/v5render -update)", err)
 					}
 					if !bytes.Equal(out.Content, want) {
 						t.Errorf("content differs from %s (rerun with -update after checking)", golden)
 					}
-					again, _ := Render(page, Options{PageW: sz.w, PageH: sz.h, Landscape: landscape})
-					if !bytes.Equal(out.Content, again.Content) {
-						t.Error("output is not deterministic")
-					}
 				})
 			}
 		}
+	}
+	if *update {
+		sort.Strings(digestTable)
+		t.Logf("goldenDigests:\n%s", strings.Join(digestTable, "\n"))
 	}
 }
 
