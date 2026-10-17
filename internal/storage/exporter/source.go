@@ -3,6 +3,7 @@ package exporter
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -63,6 +64,17 @@ type Source struct {
 	Pages map[string]Blob
 }
 
+// Limits on what ReadZip reads into memory. Documents are bounded by what the
+// tablet stores; the limits only keep a hostile or broken archive (a zip bomb)
+// from exhausting the server's memory.
+const (
+	MaxZipEntry = 256 << 20 // bytes per entry, uncompressed
+	MaxZipTotal = 1 << 30   // bytes for all entries read
+)
+
+// ErrTooLarge is returned by ReadZip for archives over the limits.
+var ErrTooLarge = errors.New("exporter: document too large")
+
 // ReadZip reads a sync 1.0 document archive (<id>.content, <id>.pdf or
 // <id>.epub, <id>.pagedata, <id>/<page>.rm). Everything it needs is read
 // into memory; other entries (metadata, thumbnails) are skipped.
@@ -71,15 +83,41 @@ func ReadZip(r io.ReaderAt, size int64) (*Source, error) {
 	if err != nil {
 		return nil, fmt.Errorf("exporter: open zip: %w", err)
 	}
+	var declared uint64
+	for _, f := range zr.File {
+		declared += f.UncompressedSize64
+	}
+	if declared > MaxZipTotal {
+		return nil, fmt.Errorf("%w: the entries add up to %d bytes, the limit is %d", ErrTooLarge, declared, MaxZipTotal)
+	}
 	src := &Source{Pages: map[string]Blob{}}
 	var payload []byte
+	var total int64
 	read := func(f *zip.File) ([]byte, error) {
+		// archive/zip refuses to read past the declared size, so this
+		// check bounds the read; the LimitReader below does not depend on
+		// that.
+		if f.UncompressedSize64 > MaxZipEntry {
+			return nil, fmt.Errorf("%w: %s is %d bytes, the limit is %d", ErrTooLarge, f.Name, f.UncompressedSize64, MaxZipEntry)
+		}
 		rc, err := f.Open()
 		if err != nil {
 			return nil, err
 		}
 		defer rc.Close()
-		return io.ReadAll(rc)
+		limit := min(int64(MaxZipEntry), MaxZipTotal-total)
+		data, err := io.ReadAll(io.LimitReader(rc, limit+1))
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(data)) > limit {
+			if limit < MaxZipEntry {
+				return nil, fmt.Errorf("%w: the entries add up to more than %d bytes", ErrTooLarge, MaxZipTotal)
+			}
+			return nil, fmt.Errorf("%w: %s is more than %d bytes", ErrTooLarge, f.Name, MaxZipEntry)
+		}
+		total += int64(len(data))
+		return data, nil
 	}
 	for _, f := range zr.File {
 		if f.FileInfo().IsDir() {

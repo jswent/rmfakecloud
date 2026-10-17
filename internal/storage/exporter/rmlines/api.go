@@ -43,6 +43,9 @@ const (
 	DefaultWorkers      = 1
 	DefaultIdleTimeout  = 5 * time.Minute
 	DefaultMaxPixels    = 64 << 20 // 64 Mpx per supersampled frame
+	// DefaultMaxOutputPixels bounds each image sent back to the server
+	// (after downsampling): 16 Mpx is 64 MB of NRGBA per frame.
+	DefaultMaxOutputPixels = 16 << 20
 )
 
 // Options control how a single page is rendered.
@@ -92,4 +95,7 @@ type Config struct {
 	WorkerPath  string        // executable to spawn with argument "render-worker"; default os.Executable()
 	IdleTimeout time.Duration // kill idle workers after this long, default 5m
 	MaxPixels   int           // refuse supersampled frames larger than this many pixels, default 64 Mpx
+	// MaxOutputPixels refuses pages whose final (downsampled) image is
+	// larger than this many pixels, default 16 Mpx.
+	MaxOutputPixels int
 }

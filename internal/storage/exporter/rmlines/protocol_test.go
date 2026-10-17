@@ -1,6 +1,7 @@
 package rmlines
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -75,5 +76,34 @@ func TestClientBadWorker(t *testing.T) {
 	c.Close()
 	if _, err := c.RenderFile(ctx, "x.rm", Options{}); !errors.Is(err, ErrClosed) {
 		t.Fatalf("after close: %v", err)
+	}
+}
+
+// The client checks the image size in a response without overflowing:
+// 2^32 x 2^32 multiplies to 0 in an int.
+func TestReceiveImageSize(t *testing.T) {
+	for _, tt := range []struct {
+		w, h int
+		ok   bool
+	}{
+		{1 << 32, 1 << 32, false},
+		{1, 1 << 62, false},
+		{4097, 4096, false},
+		{0, 10, false},
+		{4096, 4096, true},
+	} {
+		var b bytes.Buffer
+		if err := writeJSONFrame(&b, response{InkW: tt.w, InkH: tt.h}); err != nil {
+			t.Fatal(err)
+		}
+		// Pixel frames of the size the (wrapped) product asks for, so
+		// only the size check can reject the response.
+		writeFrame(&b, make([]byte, tt.w*tt.h*4))
+		writeFrame(&b, nil)
+		p := &proc{stdout: bufio.NewReader(&b)}
+		_, err := p.receive(request{Path: "x.rm"}, 4096*4096)
+		if (err == nil) != tt.ok {
+			t.Errorf("%dx%d: err %v", tt.w, tt.h, err)
+		}
 	}
 }

@@ -48,6 +48,7 @@ type wireOptions struct {
 	MaxExtentMul float64           `json:"maxExtentMul"`
 	Pad          float64           `json:"pad"`
 	MaxPixels    int               `json:"maxPixels"`
+	MaxOutPixels int               `json:"maxOutputPixels"`
 }
 
 type request struct {
@@ -138,6 +139,9 @@ func (o wireOptions) normalize() (wireOptions, error) {
 	if o.MaxPixels == 0 {
 		o.MaxPixels = DefaultMaxPixels
 	}
+	if o.MaxOutPixels == 0 {
+		o.MaxOutPixels = DefaultMaxOutputPixels
+	}
 	if o.Pad == 0 {
 		o.Pad = DefaultPad
 	}
@@ -152,13 +156,15 @@ func (o wireOptions) normalize() (wireOptions, error) {
 		return o, fmt.Errorf("pad %v out of range [0, 1000]", o.Pad)
 	case o.MaxPixels < 0:
 		return o, fmt.Errorf("negative pixel budget %d", o.MaxPixels)
+	case o.MaxOutPixels < 0:
+		return o, fmt.Errorf("negative output pixel budget %d", o.MaxOutPixels)
 	case len(o.Template) > 256:
 		return o, errors.New("template name too long")
 	}
 	return o, nil
 }
 
-func toWire(opts Options, maxPixels int) wireOptions {
+func toWire(opts Options, maxPixels, maxOutPixels int) wireOptions {
 	return wireOptions{
 		Landscape:    opts.Landscape,
 		Template:     opts.Template,
@@ -169,5 +175,6 @@ func toWire(opts Options, maxPixels int) wireOptions {
 		MaxExtentMul: opts.MaxExtentMul,
 		Pad:          opts.Pad,
 		MaxPixels:    maxPixels,
+		MaxOutPixels: maxOutPixels,
 	}
 }

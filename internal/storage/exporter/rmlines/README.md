@@ -58,8 +58,9 @@ RenderFile(ctx, path, opts)                    loop: request -> libMu -> library
   `getLayers`, and those must match `^\d{1,3}:\d{1,20}$`.
 - `getFrame` gets a buffer of exactly `w*h*4` bytes. Tracker values that are not
   finite are ignored, the extent is clamped (`Options.MaxExtentMul`, default 4x the
-  page per axis), and the supersampled frame must fit `Config.MaxPixels`
-  (default 64 Mpx).
+  page per axis), the supersampled frame must fit `Config.MaxPixels`
+  (default 64 Mpx), and the final image `Config.MaxOutputPixels` (default
+  16 Mpx, 64 MB per frame sent to the server, which checks it again).
 - `getConfig` must return `configVersion == 4`; `rm_lines_c.h` has
   `_Static_assert`s on `sizeof(RendererConfig) == 232` and on every field
   offset, so an upstream ABI change fails the build.
@@ -108,7 +109,7 @@ Frames are a 4-byte big-endian length followed by the payload.
 
 ```
 worker -> client   {"hello":"rmlines-render-worker","version":1}
-client -> worker   {"path":"/abs/page.rm","options":{landscape,template,scale,supersample,images,imagesOn,maxExtentMul,maxPixels}}
+client -> worker   {"path":"/abs/page.rm","options":{landscape,template,scale,supersample,images,imagesOn,maxExtentMul,maxPixels,maxOutputPixels}}
 worker -> client   {"pageW","pageH","extent":{L,T,R,B},"inkW","inkH","hasHighlights","error","log","ms"}
                    if error == "": ink frame (inkW*inkH*4 bytes NRGBA), highlights frame (same size, or empty)
 ```

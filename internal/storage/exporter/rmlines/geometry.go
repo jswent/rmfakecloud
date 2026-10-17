@@ -74,7 +74,9 @@ type framePlan struct {
 	ss           int // supersampling factor; the frame is outW*ss x outH*ss
 }
 
-func planFrame(e Extent, scale float64, ss, maxPixels int) (framePlan, error) {
+// planFrame plans the frame for extent e. The final image may have at most
+// maxOut pixels and the supersampled frame at most maxPixels.
+func planFrame(e Extent, scale float64, ss, maxPixels, maxOut int) (framePlan, error) {
 	p := framePlan{
 		x: int(e.L), y: int(e.T),
 		fw: int(e.R - e.L), fh: int(e.B - e.T),
@@ -84,6 +86,9 @@ func planFrame(e Extent, scale float64, ss, maxPixels int) (framePlan, error) {
 	p.outH = int(math.Round(float64(p.fh) * scale))
 	if p.fw <= 0 || p.fh <= 0 || p.outW <= 0 || p.outH <= 0 {
 		return p, fmt.Errorf("empty frame %dx%d at scale %v", p.fw, p.fh, scale)
+	}
+	if float64(p.outW)*float64(p.outH) > float64(maxOut) {
+		return p, fmt.Errorf("image %dx%d exceeds the output pixel budget of %d", p.outW, p.outH, maxOut)
 	}
 	fw, fh := float64(p.outW)*float64(ss), float64(p.outH)*float64(ss)
 	if fw*fh > float64(maxPixels) || fw > math.MaxInt32/8 || fh > math.MaxInt32/8 {

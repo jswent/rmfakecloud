@@ -65,6 +65,9 @@ func newClient(cfg Config) (*client, error) {
 	if cfg.MaxPixels <= 0 {
 		cfg.MaxPixels = DefaultMaxPixels
 	}
+	if cfg.MaxOutputPixels <= 0 {
+		cfg.MaxOutputPixels = DefaultMaxOutputPixels
+	}
 	if cfg.WorkerPath == "" {
 		exe, err := os.Executable()
 		if err != nil {
@@ -86,7 +89,7 @@ func (c *client) RenderFile(ctx context.Context, rmPath string, opts Options) (*
 }
 
 func (c *client) render(ctx context.Context, rmPath string, opts Options, debug string) (*Result, error) {
-	wo, err := toWire(opts, c.cfg.MaxPixels).normalize()
+	wo, err := toWire(opts, c.cfg.MaxPixels, c.cfg.MaxOutputPixels).normalize()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRender, err)
 	}
@@ -147,7 +150,7 @@ func (c *client) attempt(ctx context.Context, s *slot, req request, timeout time
 	}
 	ch := make(chan outcome, 1)
 	go func() {
-		res, err := p.receive(req, req.Options.MaxPixels)
+		res, err := p.receive(req, req.Options.MaxOutPixels)
 		ch <- outcome{res, err}
 	}()
 
@@ -202,6 +205,8 @@ func (p *proc) send(req request) error {
 	return nil
 }
 
+// receive reads the response to req. maxPixels bounds the size of each image
+// the worker may send.
 func (p *proc) receive(req request, maxPixels int) (*Result, error) {
 	var resp response
 	if err := readJSONFrame(p.stdout, &resp); err != nil {
@@ -213,7 +218,8 @@ func (p *proc) receive(req request, maxPixels int) (*Result, error) {
 	if resp.Error != "" {
 		return nil, &renderError{msg: resp.Error, log: resp.Log}
 	}
-	if resp.InkW <= 0 || resp.InkH <= 0 || resp.InkW*resp.InkH > maxPixels {
+	// InkW*InkH may overflow: divide instead.
+	if resp.InkW <= 0 || resp.InkH <= 0 || resp.InkW > maxPixels || resp.InkH > maxPixels/resp.InkW {
 		return nil, fmt.Errorf("bad image size %dx%d", resp.InkW, resp.InkH)
 	}
 	n := resp.InkW * resp.InkH * 4

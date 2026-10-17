@@ -3,7 +3,9 @@ package exporter
 import (
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -386,5 +388,61 @@ func TestExportTemplates(t *testing.T) {
 	if len(out) != 2 || templated(out[0].content) || !templated(out[1].content) {
 		t.Errorf("annotated PDF: %d pages, templates %v %v, want PDF page without, inserted page with",
 			len(out), len(out) > 0 && templated(out[0].content), len(out) > 1 && templated(out[1].content))
+	}
+}
+
+// rawZip writes a zip whose entries are deflated zeros of the given real
+// sizes (sz[0]) while their headers declare sz[1].
+func rawZip(t *testing.T, entries map[string][2]uint64) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, sz := range entries {
+		var comp bytes.Buffer
+		fw, err := flate.NewWriter(&comp, flate.BestSpeed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zero := make([]byte, 1<<20)
+		for left := sz[0]; left > 0; {
+			n := min(left, uint64(len(zero)))
+			fw.Write(zero[:n])
+			left -= n
+		}
+		fw.Close()
+		w, err := zw.CreateRaw(&zip.FileHeader{
+			Name: name, Method: zip.Deflate,
+			CompressedSize64: uint64(comp.Len()), UncompressedSize64: sz[1],
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.Write(comp.Bytes())
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func TestReadZipLimits(t *testing.T) {
+	content := [2]uint64{2, 2}
+	cases := map[string]map[string][2]uint64{
+		"entry header": {"d.content": content, "d.pdf": {10, MaxZipEntry + 1}},
+		"total header": {"d.content": content, "d/1.rm": {10, MaxZipEntry}, "d/2.rm": {10, MaxZipEntry},
+			"d/3.rm": {10, MaxZipEntry}, "d/4.rm": {10, MaxZipEntry}},
+	}
+	// An entry whose data is longer than its header says cannot be built:
+	// archive/zip fails such a read once it passes the declared size, so
+	// the header checks bound the memory and the LimitReader in ReadZip is
+	// only a second line of defence.
+	for name, entries := range cases {
+		t.Run(name, func(t *testing.T) {
+			z := rawZip(t, entries)
+			_, err := ReadZip(bytes.NewReader(z), int64(len(z)))
+			if !errors.Is(err, ErrTooLarge) {
+				t.Fatalf("err = %v, want ErrTooLarge", err)
+			}
+		})
 	}
 }

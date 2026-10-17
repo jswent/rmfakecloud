@@ -265,7 +265,7 @@ func renderPage(req request, dbg debugFlags) (*page, error) {
 	if libAA {
 		ss = 1
 	}
-	plan, err := planFrame(pg.extent, opts.Scale, ss, opts.MaxPixels)
+	plan, err := planFrame(pg.extent, opts.Scale, ss, opts.MaxPixels, opts.MaxOutPixels)
 	if err != nil {
 		return nil, err
 	}

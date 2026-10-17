@@ -39,18 +39,26 @@ func TestComputeExtent(t *testing.T) {
 }
 
 func TestPlanFrame(t *testing.T) {
-	p, err := planFrame(Extent{-109, 0, 1506, 3226}, 0.5, 2, DefaultMaxPixels)
+	p, err := planFrame(Extent{-109, 0, 1506, 3226}, 0.5, 2, DefaultMaxPixels, DefaultMaxOutputPixels)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.x != -109 || p.fw != 1615 || p.fh != 3226 || p.outW != 808 || p.outH != 1613 {
 		t.Fatalf("plan %+v", p)
 	}
-	if _, err := planFrame(Extent{0, 0, 1404, 1872}, 4, 2, DefaultMaxPixels); err == nil {
+	if _, err := planFrame(Extent{0, 0, 1404, 1872}, 4, 2, DefaultMaxPixels, DefaultMaxOutputPixels); err == nil {
 		t.Fatal("expected pixel budget error for 11232x14976")
 	}
-	if _, err := planFrame(Extent{0, 0, 1404, 1872}, 0.0001, 1, DefaultMaxPixels); err == nil {
+	if _, err := planFrame(Extent{0, 0, 1404, 1872}, 0.0001, 1, DefaultMaxPixels, DefaultMaxOutputPixels); err == nil {
 		t.Fatal("expected empty frame error")
+	}
+	// 1404x12000 at scale 1 is 16.8 Mpx: over the output budget even
+	// without supersampling, while the frame budget would allow it.
+	if _, err := planFrame(Extent{0, 0, 1404, 12000}, 1, 1, DefaultMaxPixels, DefaultMaxOutputPixels); err == nil {
+		t.Fatal("expected output budget error for 1404x12000")
+	}
+	if _, err := planFrame(Extent{0, 0, 1404, 11000}, 1, 1, DefaultMaxPixels, DefaultMaxOutputPixels); err != nil {
+		t.Fatal(err)
 	}
 }
 
