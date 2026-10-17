@@ -1,1 +1,5 @@
 */node_modules
+# local build output and checkouts that never belong in the build context
+.git
+.build
+.worktrees
