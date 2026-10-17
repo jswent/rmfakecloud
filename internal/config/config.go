@@ -92,6 +92,7 @@ const (
 	envRmlinesTimeout     = "RMLINES_TIMEOUT"
 	envRmlinesPtPerPx     = "RMLINES_PT_PER_PX"
 	envRmlinesClip        = "RMLINES_CLIP"
+	envRmlinesTemplates   = "RMLINES_TEMPLATES"
 )
 
 // RenderConfig configures how documents are rendered to PDF for the web UI.
@@ -111,6 +112,9 @@ type RenderConfig struct {
 	PtPerPx float64
 	// NoClip keeps ink outside the page width and above the page.
 	NoClip bool
+	// NoTemplates leaves notebook pages white instead of drawing their page
+	// template.
+	NoTemplates bool
 }
 
 // Config config
@@ -326,6 +330,7 @@ func renderFromEnv() RenderConfig {
 	var r RenderConfig
 	r.Disable = envBool(envRmlinesDisable, false)
 	r.NoClip = !envBool(envRmlinesClip, true)
+	r.NoTemplates = !envBool(envRmlinesTemplates, true)
 	if v := os.Getenv(envRmlinesWorkers); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 64 {
 			r.Workers = n
@@ -510,6 +515,7 @@ Document rendering (web UI PDF export):
 	%s	Time limit per page (default: 30s)
 	%s	PDF points per page unit (default: 72/227)
 	%s	Cut off ink outside the page width or above the page, like the tablet (default: true)
+	%s	Draw page templates (lined, grid, dots) under the ink of notebook pages (default: true)
 
 myScript hwr (needs a developer account):
 	%s
@@ -551,6 +557,7 @@ myScript hwr (needs a developer account):
 		envRmlinesTimeout,
 		envRmlinesPtPerPx,
 		envRmlinesClip,
+		envRmlinesTemplates,
 
 		envHwrApplicationKey,
 		envHwrHmac,

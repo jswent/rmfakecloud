@@ -17,8 +17,9 @@ func TestRenderFromEnv(t *testing.T) {
 	t.Setenv(envRmlinesTimeout, "45")
 	t.Setenv(envRmlinesPtPerPx, "72/226")
 	t.Setenv(envRmlinesClip, "false")
+	t.Setenv(envRmlinesTemplates, "false")
 	r := renderFromEnv()
-	want := RenderConfig{Disable: true, Workers: 3, Scale: 1.5, Supersample: 1, Timeout: 45 * time.Second, PtPerPx: 72.0 / 226, NoClip: true}
+	want := RenderConfig{Disable: true, Workers: 3, Scale: 1.5, Supersample: 1, Timeout: 45 * time.Second, PtPerPx: 72.0 / 226, NoClip: true, NoTemplates: true}
 	if r != want {
 		t.Fatalf("got %+v, want %+v", r, want)
 	}

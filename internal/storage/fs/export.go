@@ -29,6 +29,7 @@ func (fs *FileSystemStorage) Exporter() *exporter.Exporter {
 			Timeout:     r.Timeout,
 			PtPerUnit:   r.PtPerPx,
 			NoClip:      r.NoClip,
+			NoTemplates: r.NoTemplates,
 		})
 	})
 	return fs.exporter
