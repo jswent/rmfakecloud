@@ -9,15 +9,7 @@ import apiservice from "../../services/api.service"
 import NameTag from "../../components/NameTag"
 
 import { pdfjs, Document, Page } from "react-pdf";
-// import 'react-pdf/dist/Page/AnnotationLayer.css';
-// import 'react-pdf/dist/Page/TextLayer.css';
-// import 'react-pdf/dist/Page/TextLayer.css';
-//pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.js"
-// pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-//   'pdfjs-dist/build/pdf.worker.min.mjs',
-//   import.meta.url,
-// ).toString(); 
-
+import styles from "./Documents.module.scss";
 
 export default function FileViewer({ file, onSelect }) {
   const { data } = file;
@@ -26,8 +18,11 @@ export default function FileViewer({ file, onSelect }) {
 
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  // const [width, setWidth] = useState(100);
-  const [height, setHeight] = useState(100);
+  // Width of the scrollable viewer. Pages are rendered to fill it
+  // horizontally; anything taller than the viewer scrolls vertically, so a
+  // tall notebook page (reMarkable pages grow as you write down) stays legible
+  // instead of being shrunk to the viewer height.
+  const [width, setWidth] = useState(0);
   const onLoadSuccess = (pdf) => {
     setPage(1);
     setPages(pdf.numPages);
@@ -42,17 +37,25 @@ export default function FileViewer({ file, onSelect }) {
       return Math.min(p + 1, pages);
     });
   };
-	const parent = useRef(null);
-	useEffect(() => {
-		const resizeObserver = new ResizeObserver((event) => {
-			// Depending on the layout, you may need to swap inlineSize with blockSize
-			// https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserverEntry/contentBoxSize
-			// setWidth(event[0].contentBoxSize[0].inlineSize);
-			setHeight(event[0].contentBoxSize[0].blockSize);
-		});
+  const viewer = useRef(null);
+  useEffect(() => {
+    const el = viewer.current;
+    if (!el) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      // https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserverEntry/contentBoxSize
+      const box = entries[0].contentBoxSize[0];
+      setWidth(Math.floor(box.inlineSize));
+    });
+    resizeObserver.observe(el);
+    return () => resizeObserver.disconnect();
+  }, []);
 
-		resizeObserver.observe(parent.current);
-	});
+  // Start every page at its top.
+  useEffect(() => {
+    if (viewer.current) {
+      viewer.current.scrollTop = 0;
+    }
+  }, [page, file.id]);
 
   // TODO: add loading and error handling
   const triggerDownload = (blob, filename) => {
@@ -84,17 +87,17 @@ export default function FileViewer({ file, onSelect }) {
   },[pdfjs])
 
   return (
-    <>
-      <Navbar style={{ marginLeft: '-12px' }}>
+    <div className={styles.fileViewer}>
+      <Navbar style={{ marginLeft: '-12px', flexShrink: 0 }}>
         { file && (<div><NameTag node={file} onSelect={onSelect} /></div>) }
       </Navbar>
 
-      <Navbar>
+      <Navbar style={{ flexShrink: 0 }}>
         {pages > 1 && (
           <div>
-            <ButtonGroup aria-label="Basic example">
-              <Button size="sm" variant="outline-secondary" onClick={onPrev}><FaChevronLeft /></Button>
-              <Button size="sm" variant="outline-secondary" onClick={onNext}><FaChevronRight /></Button>
+            <ButtonGroup aria-label="Page navigation">
+              <Button size="sm" variant="outline-secondary" onClick={onPrev} disabled={page <= 1}><FaChevronLeft /></Button>
+              <Button size="sm" variant="outline-secondary" onClick={onNext} disabled={page >= pages}><FaChevronRight /></Button>
             </ButtonGroup>
             <span style={{ margin: '0 10px' }}>
               Page: {page} of {pages}
@@ -115,19 +118,17 @@ export default function FileViewer({ file, onSelect }) {
 
       </Navbar>
 
-
-      {file && (
-        <div ref={parent} style={{height: "95%"}}>
-		  <Document file={downloadUrl} onLoadSuccess={onLoadSuccess} options={options}>
-            <Page pageNumber={page} 
-							// width={ width } 
-							height={ height} 
-							renderAnnotationLayer={false} 
-							renderTextLayer={false}
-						/>
+      <div ref={viewer} className={styles.pdfViewer}>
+        {file && width > 0 && (
+          <Document file={downloadUrl} onLoadSuccess={onLoadSuccess} options={options}>
+            <Page pageNumber={page}
+              width={width}
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+            />
           </Document>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </div>
   );
 }
