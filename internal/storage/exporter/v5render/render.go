@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ddvk/rmfakecloud/internal/storage/exporter/inkpdf"
 	"github.com/juruen/rmapi/encoding/rm"
 )
 
@@ -46,13 +47,9 @@ type Options struct {
 	ColorMode    ColorMode
 }
 
-// Resources are the resources a content stream refers to.
-//
-// It mirrors inkpdf.Resources (Track C), which does not exist on this branch
-// yet; integration replaces it with that type.
-type Resources struct {
-	ExtGState map[string]map[string]any // name -> PDF dict entries
-}
+// Resources are the resources a content stream refers to, ready for
+// inkpdf.Document.StampContent.
+type Resources = inkpdf.Resources
 
 // Output is a content stream in visual PDF user space and its resources.
 type Output struct {
