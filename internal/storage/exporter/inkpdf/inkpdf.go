@@ -71,7 +71,7 @@ type Resources struct {
 type OpenOptions struct {
 	UserPassword, OwnerPassword string
 	// Decrypt writes the output without encryption. Without it, an encrypted
-	// input is re-encrypted on Write.
+	// input is re-encrypted on Write. It has no effect on a plain PDF.
 	Decrypt bool
 }
 
@@ -115,6 +115,14 @@ func Open(rs io.ReadSeeker, opts OpenOptions) (*Document, error) {
 		conf.Cmd = model.DECRYPT // the writer then drops /Encrypt
 	}
 	ctx, err := api.ReadAndValidate(context.Background(), rs, conf)
+	if opts.Decrypt && errors.Is(err, pdfcpu.ErrNotEncrypted) {
+		// Decrypt is a request, not an assertion: a plain PDF is read as is.
+		if _, serr := rs.Seek(0, io.SeekStart); serr != nil {
+			return nil, fmt.Errorf("inkpdf: open: %w", serr)
+		}
+		conf.Cmd = model.VALIDATE
+		ctx, err = api.ReadAndValidate(context.Background(), rs, conf)
+	}
 	if err != nil {
 		if errors.Is(err, pdfcpu.ErrWrongPassword) {
 			return nil, fmt.Errorf("inkpdf: open encrypted pdf: %w", err)

@@ -232,10 +232,14 @@ func TestEncryptedInput(t *testing.T) {
 		"user password": {UserPassword: "secret", Decrypt: true},
 		"owner only":    {Decrypt: true},
 		"owner pw":      {OwnerPassword: "owner", Decrypt: true},
+		"plain":         {Decrypt: true}, // Decrypt on an unencrypted PDF is a no-op
 	} {
 		src := userEnc
-		if name == "owner only" {
+		switch name {
+		case "owner only":
 			src = ownerOnly
+		case "plain":
+			src = plain
 		}
 		out := stampWrite(src, opts)
 		if isEncrypted(out) {
