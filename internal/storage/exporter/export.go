@@ -8,6 +8,9 @@
 //     worker subprocess (package rmlines) and placed as images;
 //   - v3/v5 pages (software 1.x/2.x) are drawn as vector strokes (v5render);
 //   - pages without ink are blank, or just the background page;
+//   - notebook pages (no background page) get their page template (lined,
+//     grid, dots; package templates) under the ink, as the tablet's own
+//     export draws it;
 //   - on a PDF payload, ink is stamped onto its pages, inserted pages are
 //     added, and the pages are put in the document's order at the end.
 //
@@ -33,6 +36,7 @@ import (
 	"github.com/ddvk/rmfakecloud/internal/storage/exporter/content"
 	"github.com/ddvk/rmfakecloud/internal/storage/exporter/inkpdf"
 	"github.com/ddvk/rmfakecloud/internal/storage/exporter/rmlines"
+	"github.com/ddvk/rmfakecloud/internal/storage/exporter/templates"
 	"github.com/ddvk/rmfakecloud/internal/storage/exporter/v5render"
 	"github.com/juruen/rmapi/encoding/rm"
 	log "github.com/sirupsen/logrus"
@@ -55,6 +59,9 @@ type Config struct {
 	// NoClip keeps ink that grows left of, right of or above a notebook
 	// page (the tablet cuts it off). For debugging.
 	NoClip bool
+	// NoTemplates leaves notebook pages white instead of drawing their page
+	// template (lined, grid, dots) under the ink.
+	NoTemplates bool
 	// WorkerPath is the executable started as render worker (default: this
 	// executable).
 	WorkerPath string
@@ -128,14 +135,14 @@ func New(cfg Config) *Exporter {
 }
 
 // cacheVersion changes when the output of the same input changes.
-const cacheVersion = 1
+const cacheVersion = 2
 
 // CacheKey identifies the settings that shape the output, so that a cached
 // export made with other settings (or before the renderer was available) is
 // not reused. It is short and safe in file names.
 func (e *Exporter) CacheKey() string {
 	h := fnv.New32a()
-	fmt.Fprintf(h, "%d|%t|%v|%d|%v|%t", cacheVersion, e.renderer != nil, e.cfg.Scale, e.cfg.Supersample, e.cfg.PtPerUnit, e.cfg.NoClip)
+	fmt.Fprintf(h, "%d|%t|%v|%d|%v|%t|%t", cacheVersion, e.renderer != nil, e.cfg.Scale, e.cfg.Supersample, e.cfg.PtPerUnit, e.cfg.NoClip, e.cfg.NoTemplates)
 	return fmt.Sprintf("%08x", h.Sum32())
 }
 
@@ -358,7 +365,6 @@ func (e *Exporter) produce(ctx context.Context, plan *content.Plan, bgPages int,
 					break
 				}
 			}
-			log.Debugf("exporter: page %d: v6, template %q (not drawn)", j.no, pp.Template)
 			res, err := e.render(ctx, path, plan.Landscape)
 			if err != nil {
 				j.kind, j.err = kindFailed, err
@@ -423,7 +429,7 @@ var errNoRenderer = errors.New("v6 renderer not available")
 func (e *Exporter) render(ctx context.Context, path string, landscape bool) (*rmlines.Result, error) {
 	opts := rmlines.Options{
 		Landscape:    landscape,
-		Template:     "", // librm_lines draws only Blank and the P Grid family; templates are not drawn yet
+		Template:     "", // drawn as vectors by package templates; librm_lines knows only a few
 		Scale:        e.cfg.Scale,
 		Supersample:  e.cfg.Supersample,
 		Images:       nil, // images disabled until image blobs are wired through
@@ -524,15 +530,27 @@ func (a *assembler) place(j *job) (int, error) {
 		return j.bg, nil
 	case j.kind == kindV6:
 		w, h := geo.pt(j.frame.R-j.frame.L), geo.pt(j.frame.B-j.frame.T)
+		tmpl, res, drawn := a.template(j, w, h)
 		var n int
 		var err error
-		if j.ink != nil {
+		if j.ink != nil && !drawn {
 			n, err = a.doc.AddPreparedPage(j.ink, w, h)
 		} else {
 			n, err = a.doc.AddBlankPage(w, h)
 		}
 		if err != nil {
 			return 0, err
+		}
+		if drawn {
+			// Template first, then the ink over it.
+			if err := a.doc.StampContent(n, tmpl, res); err != nil {
+				return n, err
+			}
+			if j.ink != nil {
+				if err := a.doc.StampPrepared(n, j.ink, inkpdf.Rect{X: 0, Y: 0, W: w, H: h}, inkpdf.BlendNormal); err != nil {
+					return n, err
+				}
+			}
 		}
 		if j.hl != nil {
 			if err := a.doc.StampPrepared(n, j.hl, inkpdf.Rect{X: 0, Y: 0, W: w, H: h}, inkpdf.BlendMultiply); err != nil {
@@ -549,6 +567,9 @@ func (a *assembler) place(j *job) (int, error) {
 		} else {
 			vw, vh = geo.nominalSize(deviceW, deviceH, a.landscape)
 			n, err = a.doc.AddBlankPage(vw, vh)
+			if err == nil {
+				err = a.stampTemplate(j, n, vw, vh)
+			}
 		}
 		if err != nil {
 			return 0, err
@@ -565,8 +586,34 @@ func (a *assembler) place(j *job) (int, error) {
 		if j.bg > 0 {
 			return j.bg, nil
 		}
-		return a.blankPage()
+		n, err := a.blankPage()
+		if err != nil {
+			return 0, err
+		}
+		w, h, err := a.doc.PageSize(n)
+		if err != nil {
+			return n, err
+		}
+		return n, a.stampTemplate(j, n, w, h)
 	}
+}
+
+// template returns the template of a notebook page of w x h points, and
+// whether there is one to draw. Pages on a background PDF never get one.
+func (a *assembler) template(j *job, w, h float64) ([]byte, inkpdf.Resources, bool) {
+	if a.e.cfg.NoTemplates || j.bg > 0 || j.page.Template == "" {
+		return nil, inkpdf.Resources{}, false
+	}
+	return templates.RenderScaled(j.page.Template, w, h, a.landscape, a.e.geo.ppu)
+}
+
+// stampTemplate draws the template of j on page n (w x h points), if any.
+func (a *assembler) stampTemplate(j *job, n int, w, h float64) error {
+	tmpl, res, ok := a.template(j, w, h)
+	if !ok {
+		return nil
+	}
+	return a.doc.StampContent(n, tmpl, res)
 }
 
 // blank adds the page without ink after a failure.

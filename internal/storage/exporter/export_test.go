@@ -331,3 +331,60 @@ func TestReadZip(t *testing.T) {
 		t.Error("broken zip accepted")
 	}
 }
+
+// templated reports whether a page carries a template from package
+// templates (its rule colour).
+func templated(content string) bool { return strings.Contains(content, "0.7529 G") }
+
+func cPageT(id, idx string, redir int, template string) string {
+	s := cPage(id, idx, redir)
+	return s[:len(s)-1] + fmt.Sprintf(`,"template":{"timestamp":"1:2","value":%q}}`, template)
+}
+
+// Notebook pages get their template under the ink; pages of an annotated
+// PDF do not, pages inserted into it do; RMLINES_TEMPLATES=false turns it
+// off; unknown templates leave the page blank.
+func TestExportTemplates(t *testing.T) {
+	notebook := &Source{
+		Content: []byte(`{"fileType":"notebook","formatVersion":2,"orientation":"portrait","pageCount":4,"cPages":{"pages":[` +
+			cPageT("a", "ba", -1, "P Lined heading") + "," + cPageT("b", "bb", -1, "P Grid medium") + "," +
+			cPageT("c", "bc", -1, "P Weird unknown") + "," + cPageT("d", "bd", -1, "P Lines small") + `]}}`),
+		Pages: map[string]Blob{
+			"a": {Data: fixture(t, "v5/test_v5.rm")},
+			"d": {Data: fixture(t, "v6/Page_down_test.rm")},
+		},
+	}
+	pdf, _ := export(t, Config{Disable: true}, notebook)
+	out := readPDF(t, pdf)
+	if len(out) != 4 {
+		t.Fatalf("%d pages", len(out))
+	}
+	for i, want := range []bool{true, true, false, true} {
+		if got := templated(out[i].content); got != want {
+			t.Errorf("page %d: template drawn %v, want %v", i+1, got, want)
+		}
+	}
+	if !strokes(out[0].content) {
+		t.Error("page 1: ink missing")
+	}
+
+	pdf, _ = export(t, Config{Disable: true, NoTemplates: true}, notebook)
+	for i, p := range readPDF(t, pdf) {
+		if templated(p.content) {
+			t.Errorf("NoTemplates: page %d has a template", i+1)
+		}
+	}
+
+	annotated := &Source{
+		Content: []byte(`{"fileType":"pdf","formatVersion":2,"orientation":"portrait","pageCount":2,"cPages":{"pages":[` +
+			cPageT("a", "ba", 0, "P Lined heading") + "," + cPageT("b", "bb", -1, "P Lined heading") + `]}}`),
+		Payload: bytes.NewReader(backgroundPDF(t, 1)),
+		Pages:   map[string]Blob{"a": {Data: fixture(t, "v5/test_v5.rm")}},
+	}
+	pdf, _ = export(t, Config{Disable: true}, annotated)
+	out = readPDF(t, pdf)
+	if len(out) != 2 || templated(out[0].content) || !templated(out[1].content) {
+		t.Errorf("annotated PDF: %d pages, templates %v %v, want PDF page without, inserted page with",
+			len(out), len(out) > 0 && templated(out[0].content), len(out) > 1 && templated(out[1].content))
+	}
+}
