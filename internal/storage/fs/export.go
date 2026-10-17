@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -185,6 +186,25 @@ func removeOlder(keep, pattern string) {
 	}
 }
 
+// safeNameRe is what a name joined into an export path may look like:
+// document ids are UUIDs, blob hashes hex, the exporter cache key hex.
+var safeNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// errUnsafeName is returned for ids and hashes that cannot be file names.
+var errUnsafeName = errors.New("export: invalid id")
+
+// safeName returns s if it is a plain file name component and an error
+// otherwise. common.Sanitize would turn "../../x" into "x"; a name that
+// Sanitize changes is rejected rather than silently mapped onto another
+// document. The regexp check is also what static analysis (CodeQL
+// go/path-injection) recognises as a path sanitizer.
+func safeName(s string) (string, error) {
+	if common.Sanitize(s) != s || !safeNameRe.MatchString(s) {
+		return "", fmt.Errorf("%w: %q", errUnsafeName, s)
+	}
+	return s, nil
+}
+
 // Export renders a sync 1.5 document to PDF. The result is cached per
 // document hash and exporter settings.
 func (fs *FileSystemStorage) Export(ctx context.Context, uid, docid string) (io.ReadCloser, error) {
@@ -196,9 +216,20 @@ func (fs *FileSystemStorage) Export(ctx context.Context, uid, docid string) (io.
 	if err != nil {
 		return nil, err
 	}
-	id := common.Sanitize(docid)
+	id, err := safeName(docid)
+	if err != nil {
+		return nil, err
+	}
+	hash, err := safeName(doc.Hash)
+	if err != nil {
+		return nil, err
+	}
+	key, err := safeName(fs.Exporter().CacheKey())
+	if err != nil {
+		return nil, err
+	}
 	cacheDir := fs.getPathFromUser(uid, CacheDir)
-	cachePath := path.Join(cacheDir, fmt.Sprintf("%s-%s-%s.pdf", id, common.Sanitize(doc.Hash), fs.Exporter().CacheKey()))
+	cachePath := path.Join(cacheDir, fmt.Sprintf("%s-%s-%s.pdf", id, hash, key))
 	return fs.exportCached(ctx, cachePath, path.Join(cacheDir, id+"-*.pdf"), func() (*exporter.Source, func(), error) {
 		return fs.hashDocSource(uid, doc)
 	})
@@ -208,7 +239,6 @@ func (fs *FileSystemStorage) Export(ctx context.Context, uid, docid string) (io.
 // files named after their hash, so the renderer reads them in place.
 func (fs *FileSystemStorage) hashDocSource(uid string, doc *models.HashDoc) (*exporter.Source, func(), error) {
 	blobDir := fs.getUserBlobPath(uid)
-	blobPath := func(hash string) string { return path.Join(blobDir, common.Sanitize(hash)) }
 	src := &exporter.Source{Pages: map[string]exporter.Blob{}}
 	var payload *os.File
 	done := func() {
@@ -219,27 +249,31 @@ func (fs *FileSystemStorage) hashDocSource(uid string, doc *models.HashDoc) (*ex
 	for _, f := range doc.Files {
 		ext := path.Ext(f.EntryName)
 		name := strings.TrimSuffix(path.Base(f.EntryName), ext)
-		var err error
+		hash, err := safeName(f.Hash)
+		if err != nil {
+			done()
+			return nil, nil, fmt.Errorf("export %s: %s: %w", doc.EntryName, f.EntryName, err)
+		}
+		blob := path.Join(blobDir, hash)
 		switch ext {
 		case storage.ContentFileExt:
-			src.Content, err = os.ReadFile(blobPath(f.Hash))
+			src.Content, err = os.ReadFile(blob)
 		case ".pagedata":
-			src.Pagedata, err = os.ReadFile(blobPath(f.Hash))
+			src.Pagedata, err = os.ReadFile(blob)
 		case storage.PdfFileExt, storage.EpubFileExt:
 			if payload != nil {
 				payload.Close()
 			}
-			payload, err = os.Open(blobPath(f.Hash))
+			payload, err = os.Open(blob)
 			if err == nil {
 				src.Payload = payload
 			}
 		case storage.RmFileExt:
-			p := blobPath(f.Hash)
-			if _, serr := os.Stat(p); serr != nil {
+			if _, serr := os.Stat(blob); serr != nil {
 				log.Warnf("export %s: page %s: blob %s missing; exporting it blank", doc.EntryName, name, f.Hash)
 				continue
 			}
-			src.Pages[name] = exporter.Blob{Path: p}
+			src.Pages[name] = exporter.Blob{Path: blob}
 		}
 		if err != nil {
 			done()
@@ -260,7 +294,14 @@ func (fs *FileSystemStorage) ExportDocument(ctx context.Context, uid, id, output
 	if outputType != "pdf" {
 		return nil, fmt.Errorf("export: only pdf is supported, not %q", outputType)
 	}
-	sanitizedID := common.Sanitize(id)
+	sanitizedID, err := safeName(id)
+	if err != nil {
+		return nil, err
+	}
+	key, err := safeName(fs.Exporter().CacheKey())
+	if err != nil {
+		return nil, err
+	}
 	zipFilePath := fs.getPathFromUser(uid, sanitizedID+storage.ZipFileExt)
 	rawStat, err := os.Stat(zipFilePath)
 	if err != nil {
@@ -268,7 +309,7 @@ func (fs *FileSystemStorage) ExportDocument(ctx context.Context, uid, id, output
 	}
 	cacheDir := fs.getPathFromUser(uid, CacheDir)
 	cachePath := path.Join(cacheDir, fmt.Sprintf("%s-annotated-%d-%d-%s.pdf",
-		sanitizedID, rawStat.Size(), rawStat.ModTime().UnixNano(), fs.Exporter().CacheKey()))
+		sanitizedID, rawStat.Size(), rawStat.ModTime().UnixNano(), key))
 	return fs.exportCached(ctx, cachePath, path.Join(cacheDir, sanitizedID+"-annotated*.pdf"), func() (*exporter.Source, func(), error) {
 		f, err := os.Open(zipFilePath)
 		if err != nil {

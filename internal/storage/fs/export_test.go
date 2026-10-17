@@ -242,3 +242,24 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(time.Millisecond)
 	}
 }
+
+func TestSafeName(t *testing.T) {
+	for _, bad := range []string{"../../x", "..", "a/b", `a\b`, "", ".", "x.pdf", "a b", "a\x00b"} {
+		if got, err := safeName(bad); !errors.Is(err, errUnsafeName) {
+			t.Errorf("safeName(%q) = %q, %v; want errUnsafeName", bad, got, err)
+		}
+	}
+	for _, good := range []string{
+		"0f8fad5b-d9cb-469f-a165-70867728950e",
+		"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+		"a1b2c3d4", "trash",
+	} {
+		if got, err := safeName(good); err != nil || got != good {
+			t.Errorf("safeName(%q) = %q, %v", good, got, err)
+		}
+	}
+	fs := newTestStorage(t, "test")
+	if _, err := fs.ExportDocument(context.Background(), "test", "../../x", "pdf", 0); !errors.Is(err, errUnsafeName) {
+		t.Errorf("ExportDocument with a traversal id: %v", err)
+	}
+}
