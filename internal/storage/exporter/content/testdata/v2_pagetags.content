@@ -1,0 +1,61 @@
+{
+    "cPages": {
+        "lastOpened": {
+            "timestamp": "1:6",
+            "value": "f6000006-8e2b-4a1f-b3c5-7d9e0f000002"
+        },
+        "original": {
+            "timestamp": "0:0",
+            "value": -1
+        },
+        "pages": [
+            {
+                "id": "f6000006-8e2b-4a1f-b3c5-7d9e0f000001",
+                "idx": { "timestamp": "1:2", "value": "ba" },
+                "template": { "timestamp": "1:1", "value": "P Lines medium" }
+            },
+            {
+                "id": "f6000006-8e2b-4a1f-b3c5-7d9e0f000002",
+                "idx": { "timestamp": "1:2", "value": "bb" },
+                "template": { "timestamp": "1:2", "value": "P Lines medium" }
+            },
+            {
+                "id": "f6000006-8e2b-4a1f-b3c5-7d9e0f000003",
+                "idx": { "timestamp": "1:2", "value": "bc" },
+                "template": { "timestamp": "1:2", "value": "P Lines medium" },
+                "deleted": { "timestamp": "1:5", "value": 1 }
+            }
+        ],
+        "uuids": [
+            { "first": "d9e0a1b2-0000-4c3d-8e4f-5a6b7c8d9e21", "second": 1 }
+        ]
+    },
+    "coverPageNumber": 0,
+    "documentMetadata": {},
+    "extraMetadata": {},
+    "fileType": "notebook",
+    "fontName": "",
+    "formatVersion": 2,
+    "lastOpenedPage": 1.0,
+    "lineHeight": -1,
+    "margins": 125.5,
+    "orientation": "portrait",
+    "pageCount": 2,
+    "pageTags": [
+        { "name": "todo", "pageId": "f6000006-8e2b-4a1f-b3c5-7d9e0f000001", "timestamp": 1773480000000 },
+        { "name": "meeting", "pageId": "f6000006-8e2b-4a1f-b3c5-7d9e0f000001", "timestamp": 1773480001000 },
+        { "name": "todo", "pageId": "f6000006-8e2b-4a1f-b3c5-7d9e0f000002", "timestamp": 1773480002000 },
+        { "name": "gone", "pageId": "f6000006-8e2b-4a1f-b3c5-7d9e0f000003", "timestamp": 1773480003000 }
+    ],
+    "sizeInBytes": "1572",
+    "tags": [
+        { "name": "work", "timestamp": 1773479990000 }
+    ],
+    "textAlignment": "justify",
+    "textScale": 1.2,
+    "transform": {
+        "m11": 1.0, "m12": 0, "m13": 0,
+        "m21": 0, "m22": 1.0, "m23": 0,
+        "m31": 0, "m32": 0, "m33": 1.0
+    }
+}

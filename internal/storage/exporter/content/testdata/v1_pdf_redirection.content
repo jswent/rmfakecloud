@@ -1,0 +1,34 @@
+{
+    "coverPageNumber": -1,
+    "documentMetadata": {
+        "title": "Synthetic six page handout"
+    },
+    "dummyDocument": false,
+    "extraMetadata": {
+        "LastPen": "Highlighterv2",
+        "LastTool": "Highlighterv2"
+    },
+    "fileType": "pdf",
+    "fontName": "",
+    "formatVersion": 1,
+    "lastOpenedPage": 3,
+    "lineHeight": -1,
+    "margins": 125,
+    "orientation": "portrait",
+    "originalPageCount": 5,
+    "pageCount": 6,
+    "pages": [
+        "b2000002-1c4e-4d77-8f0a-6a9e0b000001",
+        "b2000002-1c4e-4d77-8f0a-6a9e0b000002",
+        "b2000002-1c4e-4d77-8f0a-6a9e0b000003",
+        "b2000002-1c4e-4d77-8f0a-6a9e0b000004",
+        "b2000002-1c4e-4d77-8f0a-6a9e0b000005",
+        "b2000002-1c4e-4d77-8f0a-6a9e0b000006"
+    ],
+    "redirectionPageMap": [0, 1, -1, 2, 3, 4],
+    "sizeInBytes": "48211",
+    "tags": [],
+    "textAlignment": "justify",
+    "textScale": 1,
+    "zoomMode": "bestFit"
+}

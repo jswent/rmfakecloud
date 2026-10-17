@@ -1,0 +1,79 @@
+{
+    "cPages": {
+        "lastOpened": {
+            "timestamp": "1:20",
+            "value": "e5000005-3a9d-4b6c-8d1e-2f7a8b000003"
+        },
+        "original": {
+            "timestamp": "1:1",
+            "value": 4
+        },
+        "pages": [
+            {
+                "id": "e5000005-3a9d-4b6c-8d1e-2f7a8b000001",
+                "idx": { "timestamp": "1:2", "value": "ba" },
+                "redir": { "timestamp": "1:2", "value": 0 },
+                "template": { "timestamp": "1:1", "value": "Blank" }
+            },
+            {
+                "id": "e5000005-3a9d-4b6c-8d1e-2f7a8b000002",
+                "idx": { "timestamp": "1:2", "value": "bb" },
+                "redir": { "timestamp": "1:2", "value": 1 },
+                "template": { "timestamp": "1:1", "value": "Blank" },
+                "deleted": { "timestamp": "1:17", "value": 1 }
+            },
+            {
+                "id": "e5000005-3a9d-4b6c-8d1e-2f7a8b000003",
+                "idx": { "timestamp": "1:2", "value": "bc" },
+                "redir": { "timestamp": "1:2", "value": 2 },
+                "template": { "timestamp": "1:1", "value": "Blank" }
+            },
+            {
+                "id": "e5000005-3a9d-4b6c-8d1e-2f7a8b000004",
+                "idx": { "timestamp": "1:2", "value": "bd" },
+                "redir": { "timestamp": "1:2", "value": 3 },
+                "template": { "timestamp": "1:1", "value": "Blank" }
+            },
+            {
+                "id": "e5000005-3a9d-4b6c-8d1e-2f7a8b000005",
+                "idx": { "timestamp": "1:15", "value": "bab" },
+                "template": { "timestamp": "1:15", "value": "LS Lines medium" }
+            },
+            {
+                "id": "e5000005-3a9d-4b6c-8d1e-2f7a8b000006",
+                "idx": { "timestamp": "1:18", "value": "bcb" },
+                "template": { "timestamp": "1:18", "value": "LS Grid medium" },
+                "deleted": { "timestamp": "1:19", "value": 1 }
+            }
+        ],
+        "uuids": [
+            { "first": "d9e0a1b2-0000-4c3d-8e4f-5a6b7c8d9e11", "second": 1 }
+        ]
+    },
+    "coverPageNumber": -1,
+    "customZoomCenterX": 0,
+    "customZoomCenterY": 702.25,
+    "customZoomOrientation": "landscape",
+    "customZoomPageHeight": 1404,
+    "customZoomPageWidth": 1872,
+    "customZoomScale": 1,
+    "documentMetadata": {
+        "authors": ["Example Author"],
+        "title": "Synthetic landscape slides"
+    },
+    "extraMetadata": {},
+    "fileType": "pdf",
+    "fontName": "",
+    "formatVersion": 2,
+    "lineHeight": -1,
+    "margins": 125,
+    "orientation": "landscape",
+    "originalPageCount": 4,
+    "pageCount": 4,
+    "pageTags": [],
+    "sizeInBytes": "203117",
+    "tags": [],
+    "textAlignment": "justify",
+    "textScale": 1,
+    "zoomMode": "fitToWidth"
+}

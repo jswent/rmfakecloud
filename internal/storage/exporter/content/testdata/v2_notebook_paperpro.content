@@ -1,0 +1,72 @@
+{
+    "cPages": {
+        "lastOpened": {
+            "timestamp": "1:14",
+            "value": "c3000003-7b21-4f8e-a2d4-90c1d5000005"
+        },
+        "original": {
+            "timestamp": "0:0",
+            "value": -1
+        },
+        "pages": [
+            {
+                "id": "c3000003-7b21-4f8e-a2d4-90c1d5000001",
+                "idx": { "timestamp": "1:2", "value": "ba" },
+                "template": { "timestamp": "1:1", "value": "P Grid medium" }
+            },
+            {
+                "id": "c3000003-7b21-4f8e-a2d4-90c1d5000002",
+                "idx": { "timestamp": "1:2", "value": "bb" },
+                "template": { "timestamp": "1:2", "value": "P Grid medium" },
+                "scrollTime": { "timestamp": "1:9", "value": "2026-03-14T09:26:53Z" },
+                "verticalScroll": { "timestamp": "1:9", "value": 412.5 }
+            },
+            {
+                "id": "c3000003-7b21-4f8e-a2d4-90c1d5000003",
+                "idx": { "timestamp": "1:2", "value": "bc" },
+                "template": { "timestamp": "1:2", "value": "P Lines small" }
+            },
+            {
+                "id": "c3000003-7b21-4f8e-a2d4-90c1d5000004",
+                "idx": { "timestamp": "2:2", "value": "bbb" },
+                "template": { "timestamp": "2:1", "value": "Blank" },
+                "modifed": "1773480413000"
+            },
+            {
+                "id": "c3000003-7b21-4f8e-a2d4-90c1d5000005",
+                "idx": { "timestamp": "1:12", "value": "bcab" },
+                "template": { "timestamp": "1:12", "value": "P Lines small" }
+            }
+        ],
+        "uuids": [
+            { "first": "d9e0a1b2-0000-4c3d-8e4f-5a6b7c8d9e01", "second": 1 },
+            { "first": "d9e0a1b2-0000-4c3d-8e4f-5a6b7c8d9e02", "second": 2 }
+        ]
+    },
+    "coverPageNumber": 0,
+    "customZoomCenterX": 0,
+    "customZoomCenterY": 1080,
+    "customZoomOrientation": "portrait",
+    "customZoomPageHeight": 2160,
+    "customZoomPageWidth": 1620,
+    "customZoomScale": 1,
+    "documentMetadata": {},
+    "extraMetadata": {
+        "LastBallpointv2Color": "ArgbCode",
+        "LastBallpointv2Size": "2",
+        "LastPen": "Ballpointv2",
+        "LastTool": "Ballpointv2"
+    },
+    "fileType": "notebook",
+    "fontName": "",
+    "formatVersion": 2,
+    "lineHeight": -1,
+    "orientation": "portrait",
+    "pageCount": 5,
+    "pageTags": [],
+    "sizeInBytes": "91834",
+    "tags": [],
+    "textAlignment": "justify",
+    "textScale": 1,
+    "zoomMode": "bestFit"
+}
