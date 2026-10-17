@@ -260,7 +260,7 @@ func renderPage(req request, dbg debugFlags) (*page, error) {
 		return nil, fmt.Errorf("implausible page size %vx%v", fw, fh)
 	}
 	pg := &page{pageW: int(fw + 0.5), pageH: int(fh + 0.5)}
-	pg.extent = computeExtent(trackers, pg.pageW, pg.pageH, opts.MaxExtentMul)
+	pg.extent = computeExtent(trackers, pg.pageW, pg.pageH, opts.MaxExtentMul, opts.Pad)
 	ss := opts.Supersample
 	if libAA {
 		ss = 1

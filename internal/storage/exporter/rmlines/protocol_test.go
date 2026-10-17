@@ -42,10 +42,10 @@ func TestFrames(t *testing.T) {
 
 func TestNormalize(t *testing.T) {
 	o, err := wireOptions{}.normalize()
-	if err != nil || o.Scale != 1 || o.Supersample != 2 || o.MaxExtentMul != 4 || o.MaxPixels != DefaultMaxPixels {
+	if err != nil || o.Scale != 1 || o.Supersample != 2 || o.MaxExtentMul != 4 || o.MaxPixels != DefaultMaxPixels || o.Pad != DefaultPad {
 		t.Fatalf("defaults %+v, %v", o, err)
 	}
-	for _, bad := range []wireOptions{{Scale: -1}, {Scale: math.NaN()}, {Supersample: 9}, {Supersample: -1}, {MaxExtentMul: 0.5}} {
+	for _, bad := range []wireOptions{{Scale: -1}, {Scale: math.NaN()}, {Supersample: 9}, {Supersample: -1}, {MaxExtentMul: 0.5}, {Pad: -1}, {Pad: math.NaN()}} {
 		if _, err := bad.normalize(); err == nil {
 			t.Errorf("%+v accepted", bad)
 		}

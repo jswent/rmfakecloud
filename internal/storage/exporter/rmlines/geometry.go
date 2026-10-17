@@ -6,10 +6,6 @@ import (
 	"math"
 )
 
-// extentPad is added on each side where ink leaves the page: the library's
-// size trackers follow stroke points and ignore stroke width.
-const extentPad = 30
-
 // tracker is one getSizeTracker result, in page units.
 type tracker struct {
 	L  float64 `json:"l"`
@@ -23,8 +19,10 @@ type tracker struct {
 // computeExtent unions the trackers into an integral rectangle that contains
 // the page [0,w]x[0,h], pads the sides where ink leaves the page, and clamps
 // the growth so the result is at most mul times the page in each dimension.
+// pad is added on each side where ink leaves the page: the library's size
+// trackers follow stroke points and ignore stroke width.
 // Non-finite tracker values (corrupt files) are ignored.
-func computeExtent(ts []tracker, w, h int, mul float64) Extent {
+func computeExtent(ts []tracker, w, h int, mul, pad float64) Extent {
 	l, t, r, b := 0.0, 0.0, float64(w), float64(h)
 	for _, tr := range ts {
 		if finite(tr.L) {
@@ -40,8 +38,8 @@ func computeExtent(ts []tracker, w, h int, mul float64) Extent {
 			b = math.Max(b, tr.B)
 		}
 	}
-	el, er := grow(-l), grow(r-float64(w))
-	et, eb := grow(-t), grow(b-float64(h))
+	el, er := grow(-l, pad), grow(r-float64(w), pad)
+	et, eb := grow(-t, pad), grow(b-float64(h), pad)
 	el, er = clampGrowth(el, er, (mul-1)*float64(w))
 	et, eb = clampGrowth(et, eb, (mul-1)*float64(h))
 	return Extent{L: 0 - el, T: 0 - et, R: float64(w) + er, B: float64(h) + eb}
@@ -50,11 +48,11 @@ func computeExtent(ts []tracker, w, h int, mul float64) Extent {
 func finite(f float64) bool { return !math.IsNaN(f) && !math.IsInf(f, 0) }
 
 // grow turns an overhang beyond the page into a padded integral growth.
-func grow(over float64) float64 {
+func grow(over, pad float64) float64 {
 	if over <= 0 {
 		return 0
 	}
-	return math.Ceil(over + extentPad)
+	return math.Ceil(over + pad)
 }
 
 // clampGrowth scales the growth on both sides down so that a+b <= max.

@@ -46,6 +46,7 @@ type wireOptions struct {
 	Images       map[string]string `json:"images"`
 	ImagesOn     bool              `json:"imagesOn"`
 	MaxExtentMul float64           `json:"maxExtentMul"`
+	Pad          float64           `json:"pad"`
 	MaxPixels    int               `json:"maxPixels"`
 }
 
@@ -137,6 +138,9 @@ func (o wireOptions) normalize() (wireOptions, error) {
 	if o.MaxPixels == 0 {
 		o.MaxPixels = DefaultMaxPixels
 	}
+	if o.Pad == 0 {
+		o.Pad = DefaultPad
+	}
 	switch {
 	case math.IsNaN(o.Scale) || o.Scale <= 0 || o.Scale > 16:
 		return o, fmt.Errorf("scale %v out of range (0, 16]", o.Scale)
@@ -144,6 +148,8 @@ func (o wireOptions) normalize() (wireOptions, error) {
 		return o, fmt.Errorf("supersample %d out of range [1, 8]", o.Supersample)
 	case math.IsNaN(o.MaxExtentMul) || o.MaxExtentMul < 1 || o.MaxExtentMul > 64:
 		return o, fmt.Errorf("max extent multiple %v out of range [1, 64]", o.MaxExtentMul)
+	case math.IsNaN(o.Pad) || o.Pad < 0 || o.Pad > 1000:
+		return o, fmt.Errorf("pad %v out of range [0, 1000]", o.Pad)
 	case o.MaxPixels < 0:
 		return o, fmt.Errorf("negative pixel budget %d", o.MaxPixels)
 	case len(o.Template) > 256:
@@ -161,6 +167,7 @@ func toWire(opts Options, maxPixels int) wireOptions {
 		Images:       opts.Images,
 		ImagesOn:     opts.Images != nil,
 		MaxExtentMul: opts.MaxExtentMul,
+		Pad:          opts.Pad,
 		MaxPixels:    maxPixels,
 	}
 }

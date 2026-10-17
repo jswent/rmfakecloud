@@ -38,6 +38,7 @@ const (
 	DefaultScale        = 1.0
 	DefaultSupersample  = 2
 	DefaultMaxExtentMul = 4.0
+	DefaultPad          = 30.0
 	DefaultTimeout      = 30 * time.Second
 	DefaultWorkers      = 1
 	DefaultIdleTimeout  = 5 * time.Minute
@@ -52,6 +53,7 @@ type Options struct {
 	Supersample  int               // render at Scale*Supersample, box-downsample with premultiplied alpha; default 2; 1 disables
 	Images       map[string]string // imageRef uuid -> PNG/JPEG file path for addImage; nil => images disabled (no magenta boxes)
 	MaxExtentMul float64           // the extent may not exceed this multiple of the page width/height; default 4
+	Pad          float64           // page units added on each side where ink leaves the page (trackers ignore stroke width); 0 means DefaultPad (30)
 	Timeout      time.Duration     // per page; default 30s
 }
 
@@ -66,7 +68,7 @@ type Result struct {
 	// Options.Landscape is set. Extent is expressed in this frame.
 	PageW, PageH int
 	// Extent is the rendered region: the union of the library's size
-	// trackers, padded by 30 units on every side where ink leaves the page,
+	// trackers, padded by Options.Pad units on every side where ink leaves the page,
 	// and clamped by Options.MaxExtentMul. It always contains the page.
 	Extent Extent
 	// Ink holds everything except highlighter strokes and glyph highlights.

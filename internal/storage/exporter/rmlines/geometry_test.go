@@ -13,19 +13,21 @@ func TestComputeExtent(t *testing.T) {
 		name string
 		ts   []tracker
 		mul  float64
+		pad  float64
 		want Extent
 	}{
-		{"page only", []tracker{page}, 4, Extent{0, 0, 1404, 1872}},
-		{"grows down", []tracker{page, {L: 0, T: 0, R: 1404, B: 4112}}, 4, Extent{0, 0, 1404, 4142}},
-		{"grows left and right", []tracker{page, {L: -79, T: 0, R: 1476, B: 3196}}, 4, Extent{-109, 0, 1506, 3226}},
-		{"fractional", []tracker{page, {L: -0.5, R: 1404, B: 1872.2}}, 4, Extent{-31, 0, 1404, 1903}},
-		{"clamped", []tracker{page, {L: -3e38, T: -3e38, R: 3e38, B: 3e38}}, 4, Extent{-2106, -2808, 3510, 4680}},
-		{"mul 1", []tracker{page, {L: -100, B: 5000}}, 1, Extent{0, 0, 1404, 1872}},
-		{"non-finite ignored", []tracker{page, {L: math.NaN(), T: math.Inf(-1), R: math.Inf(1), B: math.NaN()}}, 4, Extent{0, 0, 1404, 1872}},
+		{"page only", []tracker{page}, 4, 30, Extent{0, 0, 1404, 1872}},
+		{"grows down", []tracker{page, {L: 0, T: 0, R: 1404, B: 4112}}, 4, 30, Extent{0, 0, 1404, 4142}},
+		{"grows left and right", []tracker{page, {L: -79, T: 0, R: 1476, B: 3196}}, 4, 30, Extent{-109, 0, 1506, 3226}},
+		{"fractional", []tracker{page, {L: -0.5, R: 1404, B: 1872.2}}, 4, 30, Extent{-31, 0, 1404, 1903}},
+		{"clamped", []tracker{page, {L: -3e38, T: -3e38, R: 3e38, B: 3e38}}, 4, 30, Extent{-2106, -2808, 3510, 4680}},
+		{"mul 1", []tracker{page, {L: -100, B: 5000}}, 1, 30, Extent{0, 0, 1404, 1872}},
+		{"pad 48", []tracker{page, {L: 0, T: 0, R: 1404, B: 4112}}, 4, 48, Extent{0, 0, 1404, 4160}},
+		{"non-finite ignored", []tracker{page, {L: math.NaN(), T: math.Inf(-1), R: math.Inf(1), B: math.NaN()}}, 4, 30, Extent{0, 0, 1404, 1872}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeExtent(tt.ts, 1404, 1872, tt.mul)
+			got := computeExtent(tt.ts, 1404, 1872, tt.mul, tt.pad)
 			if got != tt.want {
 				t.Fatalf("got %+v, want %+v", got, tt.want)
 			}

@@ -81,7 +81,9 @@ RenderFile(ctx, path, opts)                    loop: request -> libMu -> library
 
 1. `buildTree`, `makeRenderer(tree, 0, Options.Landscape)`, `getLayers`.
 2. Extent: the union of the size trackers. Every side where ink leaves the page
-   gets 30 units of padding (trackers ignore stroke width), the result is
+   gets `Options.Pad` units of padding (default 30; trackers ignore stroke
+   width; the exporter passes 48, which reproduces the tablet's own grown
+   page heights), the result is
    rounded out to whole units and clamped. It always contains the page.
    `Result.PageW/PageH` is the renderer's frame: the SceneInfo paper size
    (default 1404x1872), swapped when `Landscape` is set.
