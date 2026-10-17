@@ -86,3 +86,70 @@
     width: 100%;
     background-color: transparent;
 }
+.fileViewer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+// Pages fill the viewer's width; taller pages scroll vertically. This undoes
+// the global `canvas` rule in App.scss, which caps a canvas at the viewport
+// height and would shrink a tall page until it is unreadable.
+.pdfViewer {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+
+    :global(.react-pdf__Page__canvas) {
+        margin: 0;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none;
+    }
+}
+
+// Tree beside the viewer on wide screens; stacked on narrow ones, where the
+// tree takes only the height it needs (capped) and the viewer gets the rest.
+// Without this both columns were 100% tall and the viewer was pushed below
+// the fold and clipped on phones.
+.layout {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.sidebar,
+.main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+@media (min-width: 768px) {
+    .sidebar,
+    .main {
+        height: 100%;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .layout {
+        flex-direction: column;
+        flex-wrap: nowrap;
+    }
+
+    .sidebar {
+        flex: 0 1 auto;
+        max-height: 35vh;
+    }
+
+    .main {
+        flex: 1 1 0;
+    }
+}

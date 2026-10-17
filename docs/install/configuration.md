@@ -13,6 +13,24 @@ The configuration is made through environment variables.
 | `RM_TRUST_PROXY`  | Trust the proxy for client ip addresses (X-Forwarded-For/X-Real-IP) default false |
 | `HASH_SCHEMA_VERSION` | Hash tree schema version: "3" or "4" (default: 3) |
 
+## Document rendering
+
+The web interface exports documents as PDF. Pages written with tablet software 3.x (`.rm` version 6) are drawn by [LIB rMLines](https://github.com/RedTTGMoss/librm_lines) in separate worker processes; older pages are drawn as vector strokes. See [Document rendering](../usage/rendering.md) for what is and is not drawn. The container image includes the renderer; a plain `go build` does not, and then exports software 3.x pages as blank pages.
+
+| Variable name          | Description |
+|------------------------|-------------|
+| `RMLINES_DISABLE`      | `true` turns the software 3.x renderer off (those pages export blank). Default: `false` |
+| `RMLINES_WORKERS`      | Number of render worker processes, 1 to 64. Each handles one page at a time. Default: `1` |
+| `RMLINES_SCALE`        | Image pixels per page unit. Higher is sharper and larger. Default: `1.0` |
+| `RMLINES_SUPERSAMPLE`  | Render at this many times the resolution and scale down, for smooth edges; `1` disables. Default: `2` |
+| `RMLINES_TIMEOUT`      | Time limit for one page, as a duration (`30s`, `2m`) or in seconds. A page over the limit exports blank. Default: `30s` |
+| `RMLINES_DOC_TIMEOUT`  | Time limit for exporting one document, as a duration (`10m`) or in seconds. An export over the limit fails. Default: `10m` |
+| `RMLINES_PT_PER_PX`    | PDF points per page unit, as a number or a ratio. The default reproduces the page sizes of the tablet's own PDF export on the reMarkable 2, Paper Pro and Paper Pro Move. Default: `72/227` |
+| `RMLINES_CLIP`         | `false` keeps ink that was written outside the page width or above the page; the tablet cuts it off. For debugging. Default: `true` |
+| `RMLINES_TEMPLATES`    | `false` leaves notebook pages white instead of drawing their page template (lined, grid, dots) under the ink, as the tablet's own export does. Default: `true` |
+
+Exports are cached per document version under the user's `.cache` folder in the data directory.
+
 ## Handwriting recognition
 
 To use the handwriting recognition feature, you need first to create a free account on <https://developer.myscript.com/> (up to 2000 free recognitions per month).

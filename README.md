@@ -41,7 +41,7 @@ See the [documentation](https://ddvk.github.io/rmfakecloud/remarkable/setup/) fo
 | Messaging integration to Slack | 🟡 | Not directly, use a webhook with zapier/make/n8n |
 | Archive document to cloud | 🟡 | It works but the information is not saved |
 | [Passcode (PIN) reset](https://ddvk.github.io/rmfakecloud/usage/passcode-reset/) | ✅ | reMarkable 1 / reMarkable 2 only |
-| Document rendering in web interface | ❌ | [WIP](https://github.com/ddvk/rmfakecloud/issues/255) |
+| [Document rendering in web interface](https://ddvk.github.io/rmfakecloud/usage/rendering/) | ✅ | PDF export; software 3.x (v6) rendered via LIB rMLines; v5 vector. Common page templates (lined, grid, dots) drawn; planner and other templates not yet |
 
 
 ## Breaking Changes
@@ -103,3 +103,17 @@ run `./dev.sh` which should start the UI and backend
    ```
    journalctl -u rm-sync
    ```
+
+## Third-party notices
+
+Builds with the v6 page renderer (the default container image and the
+`rmfakecloud-rmlines-*` release binaries) include:
+
+```
+LIB rMLines
+https://github.com/RedTTGMoss/librm_lines
+```
+
+together with FreeType, HarfBuzz and other libraries and fonts. Their
+copyright notices and licences are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

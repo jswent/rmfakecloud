@@ -37,4 +37,5 @@ nav:
       - Integrations: usage/integrations.md
       - Diff Sync: usage/diff-sync.md
       - Passcode Reset: usage/passcode-reset.md
+      - Document Rendering: usage/rendering.md
   - Browser Extension: browser-extension.md

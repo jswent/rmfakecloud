@@ -1,0 +1,30 @@
+Add an RM_LINES_STATIC option to build librm_lines as a static library.
+
+Upstream hardcodes the rm_lines target as SHARED (STATIC only under
+Emscripten). rmfakecloud links the library into a fully static Go binary
+(musl, FROM scratch image), so it needs librm_lines.a. BUILD_SHARED_LIBS is
+not usable as a switch because it would also turn FreeType and HarfBuzz
+into shared libraries. The option defaults to OFF, so upstream behaviour
+is unchanged.
+
+Local patch against librm_lines 1.4.7, to be proposed upstream.
+Tracking issue: https://github.com/jswent/rmfakecloud/issues/1
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9b57d40..d3df835 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -107,7 +107,12 @@ file(GLOB RENDERER_FILES rm_lines/src/renderer/rm_lines_stroker/*.cpp)
+ file(GLOB RM_PENS_FILES rm_lines/src/renderer/rm_lines_stroker/rm_pens/*.cpp)
+ file(GLOB RM_TEMPLATE_FILES rm_lines/src/renderer/rm_lines_stroker/templates/*.cpp)
+ file(GLOB STB rm_lines/src/stb/*.cpp)
+-set(RM_LINES_LIBRARY_TYPE SHARED)
++option(RM_LINES_STATIC "Build librm_lines as a static library" OFF)
++if (RM_LINES_STATIC)
++    set(RM_LINES_LIBRARY_TYPE STATIC)
++else ()
++    set(RM_LINES_LIBRARY_TYPE SHARED)
++endif ()
+ 
+ # If building for web with emscripten, build a static library instead of a shared library
+ if (EMSCRIPTEN)

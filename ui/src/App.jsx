@@ -24,10 +24,11 @@ import "react-toastify/dist/ReactToastify.css";
 import "./App.scss"
 
 import { pdfjs } from "react-pdf";
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString(); 
+// `?url` lets Vite serve the worker both from the dev server and as a hashed
+// asset in production builds (the import.meta.url form only resolved in the
+// production build).
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export default function App() {
 

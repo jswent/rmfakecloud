@@ -1,13 +1,13 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -30,6 +30,9 @@ const (
 // FileSystemStorage store everything to disk
 type FileSystemStorage struct {
 	Cfg *config.Config
+
+	exporterOnce sync.Once
+	exporter     *exporter.Exporter
 }
 
 func sanitizeFileName(fileName string) string {
@@ -47,69 +50,6 @@ func (fs *FileSystemStorage) getUserBlobPath(uid string) string {
 
 func (fs *FileSystemStorage) getPathFromUser(uid, path string) string {
 	return filepath.Join(fs.getUserPath(uid), sanitizeFileName(path))
-}
-
-// ExportDocument Exports a document to the outputType
-func (fs *FileSystemStorage) ExportDocument(uid, id, outputType string, exportOption storage.ExportOption) (io.ReadCloser, error) {
-	if outputType != "pdf" {
-		return nil, errors.New("todo: only pdfs supported")
-	}
-
-	cacheDirPath := fs.getPathFromUser(uid, CacheDir)
-	err := os.MkdirAll(cacheDirPath, 0700)
-	if err != nil {
-		return nil, err
-	}
-	sanitizedID := common.Sanitize(id)
-
-	zipFilePath := fs.getPathFromUser(uid, sanitizedID+storage.ZipFileExt)
-	log.Debugln("Fullpath:", zipFilePath)
-	rawStat, err := os.Stat(zipFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("cant find raw document %v", err)
-	}
-
-	outputFilePath := path.Join(cacheDirPath, sanitizedID+"-annotated.pdf")
-	outStat, err := os.Stat(outputFilePath)
-
-	// exists and not older
-	if err == nil && !rawStat.ModTime().After(outStat.ModTime()) {
-		return os.Open(outputFilePath)
-	}
-
-	size := rawStat.Size()
-	arch := &exporter.MyArchive{}
-	zipFile, err := os.Open(zipFilePath)
-	if err != nil {
-		return nil, err
-	}
-	defer zipFile.Close()
-	err = arch.Read(zipFile, size)
-	if err != nil {
-		return nil, err
-	}
-
-	if arch.Payload != nil {
-		arch.PayloadReader = exporter.NewSeekCloser(arch.Payload)
-	}
-
-	outputFile, err := os.Create(outputFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	err = exporter.RenderRmapi(arch, outputFile)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = outputFile.Seek(0, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return outputFile, nil
-
 }
 
 // GetDocument Opens a document by id

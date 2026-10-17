@@ -44,3 +44,47 @@ jobs:
     - name: TestGO
       run: make testgo
 
+
+  # Builds librm_lines from the pinned sources (build/rmlines) and runs the
+  # cgo link probe plus the rmlines package tests when that package exists.
+  rmlines:
+    name: Test rmlines (cgo)
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+
+    # librm_lines needs CMake >= 3.30 and fontTools at configure time;
+    # Ubuntu's g++ 13 meets the C++20 requirement.
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install build tools
+      run: pip install cmake==3.31.6 ninja==1.11.1.4 fonttools==4.60.1
+
+    - name: Cache librm_lines
+      id: cache-rmlines
+      uses: actions/cache@v4
+      with:
+        path: .build/rmlines
+        key: rmlines-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build/rmlines/VERSION', 'build/rmlines/SOURCES', 'build/rmlines/SHA256SUMS', 'build/rmlines/build.sh', 'build/rmlines/patches/*') }}
+
+    # The checkout is newer than the restored archive; tell make it is current.
+    - name: Mark cached library as up to date
+      if: steps.cache-rmlines.outputs.cache-hit == 'true'
+      run: touch .build/rmlines/lib/librm_lines.a
+
+    # The tests do not need the UI; give ui/ its embed target.
+    - name: UI placeholder
+      run: mkdir -p ui/dist && touch ui/dist/index.html
+
+    - name: Build library and test
+      run: make test-rmlines

@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/ddvk/rmfakecloud/internal/email"
 	log "github.com/sirupsen/logrus"
@@ -81,12 +83,47 @@ const (
 	envMQTTPort          = "MQTT_PORT"
 	envICEServers        = "ICE_SERVERS"
 	envHashSchemaVersion = "HASH_SCHEMA_VERSION"
+
+	// document rendering (web UI exports)
+	envRmlinesDisable     = "RMLINES_DISABLE"
+	envRmlinesWorkers     = "RMLINES_WORKERS"
+	envRmlinesScale       = "RMLINES_SCALE"
+	envRmlinesSupersample = "RMLINES_SUPERSAMPLE"
+	envRmlinesTimeout     = "RMLINES_TIMEOUT"
+	envRmlinesDocTimeout  = "RMLINES_DOC_TIMEOUT"
+	envRmlinesPtPerPx     = "RMLINES_PT_PER_PX"
+	envRmlinesClip        = "RMLINES_CLIP"
+	envRmlinesTemplates   = "RMLINES_TEMPLATES"
 )
+
+// RenderConfig configures how documents are rendered to PDF for the web UI.
+// Zero values mean the exporter's defaults.
+type RenderConfig struct {
+	// Disable turns off the v6 (software 3.x) page renderer.
+	Disable bool
+	// Workers is the number of render worker processes.
+	Workers int
+	// Scale is the number of image pixels per page unit.
+	Scale float64
+	// Supersample is the supersampling factor (1 disables).
+	Supersample int
+	// Timeout bounds the rendering of one page.
+	Timeout time.Duration
+	// DocTimeout bounds the export of one document (default 10 minutes).
+	DocTimeout time.Duration
+	// PtPerPx is the size of a page unit in PDF points.
+	PtPerPx float64
+	// NoClip keeps ink outside the page width and above the page.
+	NoClip bool
+	// NoTemplates leaves notebook pages white instead of drawing their page
+	// template.
+	NoTemplates bool
+}
 
 // Config config
 type Config struct {
-	Port              string
-	StorageURL        string
+	Port       string
+	StorageURL string
 	//only https
 	CloudHost         string
 	DataDir           string
@@ -106,6 +143,7 @@ type Config struct {
 	MQTTPort          string
 	ICEServers        []interface{}
 	HashSchemaVersion string
+	Render            RenderConfig
 }
 
 // Verify verify
@@ -266,6 +304,7 @@ func FromEnv() *Config {
 	}
 
 	cfg := Config{
+		Render:            renderFromEnv(),
 		Port:              port,
 		StorageURL:        uploadURL,
 		CloudHost:         cloudHost,
@@ -286,6 +325,93 @@ func FromEnv() *Config {
 		HashSchemaVersion: hashSchemaVersion,
 	}
 	return &cfg
+}
+
+// renderFromEnv reads the RMLINES_* variables. Invalid values are logged and
+// ignored.
+func renderFromEnv() RenderConfig {
+	var r RenderConfig
+	r.Disable = envBool(envRmlinesDisable, false)
+	r.NoClip = !envBool(envRmlinesClip, true)
+	r.NoTemplates = !envBool(envRmlinesTemplates, true)
+	if v := os.Getenv(envRmlinesWorkers); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 64 {
+			r.Workers = n
+		} else {
+			log.Warnf("%s=%q ignored: want a number of workers from 1 to 64", envRmlinesWorkers, v)
+		}
+	}
+	if v := os.Getenv(envRmlinesScale); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 && f <= 16 {
+			r.Scale = f
+		} else {
+			log.Warnf("%s=%q ignored: want a number in (0, 16]", envRmlinesScale, v)
+		}
+	}
+	if v := os.Getenv(envRmlinesSupersample); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 8 {
+			r.Supersample = n
+		} else {
+			log.Warnf("%s=%q ignored: want 1 to 8", envRmlinesSupersample, v)
+		}
+	}
+	r.Timeout = envDuration(envRmlinesTimeout, "30s")
+	r.DocTimeout = envDuration(envRmlinesDocTimeout, "10m")
+	if v := os.Getenv(envRmlinesPtPerPx); v != "" {
+		if f, ok := parseRatio(v); ok && f > 0.05 && f < 5 {
+			r.PtPerPx = f
+		} else {
+			log.Warnf("%s=%q ignored: want points per page unit, e.g. 0.3172 or 72/227", envRmlinesPtPerPx, v)
+		}
+	}
+	return r
+}
+
+// envDuration reads a positive duration ("30s", "2m") or a number of seconds;
+// 0 when unset or invalid.
+func envDuration(name, example string) time.Duration {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		if secs, err2 := strconv.Atoi(v); err2 == nil {
+			d, err = time.Duration(secs)*time.Second, nil
+		}
+	}
+	if err != nil || d <= 0 {
+		log.Warnf("%s=%q ignored: want a duration such as %s", name, v, example)
+		return 0
+	}
+	return d
+}
+
+func envBool(name string, def bool) bool {
+	v := os.Getenv(name)
+	if v == "" {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		log.Warnf("%s=%q ignored: want true or false", name, v)
+		return def
+	}
+	return b
+}
+
+// parseRatio parses "0.3172" or "72/227".
+func parseRatio(s string) (float64, bool) {
+	if a, b, ok := strings.Cut(s, "/"); ok {
+		n, err1 := strconv.ParseFloat(strings.TrimSpace(a), 64)
+		d, err2 := strconv.ParseFloat(strings.TrimSpace(b), 64)
+		if err1 != nil || err2 != nil || d == 0 {
+			return 0, false
+		}
+		return n / d, true
+	}
+	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	return f, err == nil
 }
 
 // normalizeICEServers expands "urls" arrays into singular "url" entries; xochitl rejects anything else
@@ -393,6 +519,16 @@ Emails, smtp:
 	%s	custom HELO (if your email server needs it)
 	%s	override the email's From:
 
+Document rendering (web UI PDF export):
+	%s	Turn off the renderer for tablet software 3.x pages (default: false)
+	%s	Number of render worker processes (default: 1)
+	%s	Image pixels per page unit (default: 1.0)
+	%s	Supersampling factor, 1 disables (default: 2)
+	%s	Time limit per page (default: 30s)
+	%s	PDF points per page unit (default: 72/227)
+	%s	Cut off ink outside the page width or above the page, like the tablet (default: true)
+	%s	Draw page templates (lined, grid, dots) under the ink of notebook pages (default: true)
+
 myScript hwr (needs a developer account):
 	%s
 	%s
@@ -425,6 +561,15 @@ myScript hwr (needs a developer account):
 		envSMTPInsecureTLS,
 		envSMTPHelo,
 		envSMTPFrom,
+
+		envRmlinesDisable,
+		envRmlinesWorkers,
+		envRmlinesScale,
+		envRmlinesSupersample,
+		envRmlinesTimeout,
+		envRmlinesPtPerPx,
+		envRmlinesClip,
+		envRmlinesTemplates,
 
 		envHwrApplicationKey,
 		envHwrHmac,

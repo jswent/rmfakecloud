@@ -12,6 +12,7 @@ import (
 	"github.com/ddvk/rmfakecloud/internal/app"
 	"github.com/ddvk/rmfakecloud/internal/cli"
 	"github.com/ddvk/rmfakecloud/internal/config"
+	"github.com/ddvk/rmfakecloud/internal/storage/exporter/rmlines"
 	"github.com/gin-gonic/gin"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,10 @@ func configureLogging() io.Closer {
 }
 
 func main() {
+	// Subprocess entry for the v6 renderer; must run before any flag or config handling.
+	if len(os.Args) > 1 && os.Args[1] == rmlines.WorkerArg {
+		os.Exit(rmlines.WorkerMain(os.Stdin, os.Stdout, os.Stderr))
+	}
 	flag.Usage = func() {
 		flag.PrintDefaults()
 		fmt.Println("Version: ", version)
