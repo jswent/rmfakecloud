@@ -274,7 +274,8 @@ func inkCoverage(theirs, ours gray) coverage {
 // holds for a password-protected PDF exported as ink only.
 func TestBlankPageSizeFromFirstV6(t *testing.T) {
 	const ppW, ppH = 513.8, 685.1 // 1620x2160 units at 72/227
-	pp := Blob{Path: filepath.Join(fixtures, "v6/test_rmpp_edges.rm")} // SceneInfo paper size 1620x2160
+	// SceneInfo paper size 1620x2160
+	pp := Blob{Path: filepath.Join(fixtures, "v6/test_rmpp_edges.rm")}
 	notebook := &Source{
 		Content: []byte(`{"fileType":"notebook","formatVersion":1,"pages":["b1","b2","pp","b3"]}`),
 		Pages:   map[string]Blob{"pp": pp},

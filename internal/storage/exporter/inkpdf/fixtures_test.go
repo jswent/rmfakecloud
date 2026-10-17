@@ -1,7 +1,6 @@
 package inkpdf
 
-// Test fixtures, ported from the pdfcpu research (scratchpad/research/pdfcpu/fixtures):
-// quadrant images with alpha, hand-written background PDFs with odd page boxes
+// Test fixtures: quadrant images with alpha, hand-written background PDFs with odd page boxes
 // and /Rotate, and a poppler-based renderer with pixel probes.
 
 import (

@@ -11,7 +11,8 @@ import (
 
 // stampCases cover /Rotate 0/90/180/270/-90, offset MediaBoxes, a CropBox
 // inside and one partly outside the MediaBox, offset rectangles and uneven
-// stretch. Expected matrices are written out by hand from REPORT.md §B.
+// stretch. Expected matrices are written out by hand from the table on
+// pageGeom.placement in stamp.go.
 var stampCases = []struct {
 	name     string
 	page     pageSpec

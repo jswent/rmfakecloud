@@ -22,8 +22,9 @@ type matrix [6]float64
 // and size w x h, on a page with geometry g. With X0 = Y0 = 0 and w = h = 1 it
 // is the matrix from visual PDF user space to the page's user space.
 //
-// Verified with poppler in research/pdfcpu (REPORT.md §B) and in this
-// package's tests:
+// Verified by rendering stamped quadrant images with poppler (pdftoppm) on
+// pages with every /Rotate and with offset and cropped boxes; stamp_test.go
+// checks these matrices and, when pdftoppm is installed, the rendered pixels:
 //
 //	rot   0: [ w  0  0  h  x0+X0  y0+Y0]
 //	rot  90: [ 0  w -h  0  x1-Y0  y0+X0]

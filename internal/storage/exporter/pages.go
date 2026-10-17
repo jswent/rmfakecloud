@@ -96,7 +96,7 @@ func crop(img *image.NRGBA, r image.Rectangle) *image.NRGBA {
 // top-left, y down).
 //
 // v6 ink on a PDF is drawn at a fixed scale, not fitted to the PDF page
-// (giovi321, measured on a 960x540 deck: research/triage §3.4): device
+// (measured by giovi321 on a 960x540 slide deck annotated on an rM2): device
 // x = 0 is the horizontal centre of the PDF page and y = 0 its top edge, so
 // x_pt = vw/2 + x_dev*ppu and y_pt = y_dev*ppu. rmlines reports the extent in
 // its frame, where the page's left edge is 0 (device x = -pageW/2), hence

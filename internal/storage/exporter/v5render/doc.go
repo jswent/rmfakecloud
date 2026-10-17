@@ -9,17 +9,17 @@
 // # Geometry
 //
 // Ink is stored in device pixels of the portrait 1404x1872 screen, origin
-// top-left, y down. The mapping is the one in
-// internal/storage/exporter/pdf.go (pageTransform.apply and transformFor,
-// including giovi321's quarter turn from ddvk/rmfakecloud#483, commit
-// 430ac58 on this branch):
+// top-left, y down. The mapping is the one of the unipdf renderer this
+// package replaced (internal/storage/exporter/pdf.go, since removed; see the
+// git history: pageTransform.apply and transformFor, including giovi321's
+// quarter turn from ddvk/rmfakecloud#483, commit 430ac58):
 //
 //   - Turned (landscape): the page's width runs along the screen's long side.
 //     s = PageW/1872, x = (1872 - y_dev)*s, y = PageH - x_dev*s.
 //   - Upright (portrait): s = PageH/1872, or PageW/1404 when PageH/PageW < 1.33;
 //     x = x_dev*s, y = PageH - y_dev*s.
 //
-// pdf.go turns the ink when the page is wider than tall (rmrl does the same:
+// That renderer turned the ink when the page is wider than tall (rmrl does the same:
 // rmrl/render.py, landscape_bpage). Render also turns it when
 // Options.Landscape is set: a portrait page shown in a landscape document is
 // fitted to the screen's long side, which is the same turned mapping.
@@ -47,10 +47,10 @@
 //     opacity). Strength lightens the colour towards white instead of using
 //     transparency, so no extra graphics states are needed.
 //   - Highlighter: the whole stroke as one polyline, width = mean Width (30 px
-//     when the file has none, the width pdf.go used), square caps, drawn
+//     when the file has none, the width the old renderer used), square caps, drawn
 //     under an ExtGState with CA 0.5 and BM Multiply so text underneath
 //     stays legible. Colour 0..2 (older files) is yellow.
-//   - Eraser and erase-area strokes are skipped, as in pdf.go.
+//   - Eraser and erase-area strokes are skipped, as in the old renderer.
 //   - Unknown pen codes are drawn like a fineliner.
 //
 // Consecutive segments whose width and colour round to the same value are
@@ -63,7 +63,7 @@
 // further codes, parsed numerically here: 3 yellow, 4 green, 5 pink, 6 blue,
 // 7 red, 8 grey overlap (rmscene's PenColor enum). RGB values follow rmc's
 // RM_PALETTE (github.com/ricklupton/rmc,
-// src/rmc/exporters/writing_tools.py). pdf.go set the
+// src/rmc/exporters/writing_tools.py). The old renderer set the
 // colour with rg, the fill operator, so strokes always came out black, and
 // it swapped black and white; Render uses RG and the right values.
 package v5render

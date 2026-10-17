@@ -159,7 +159,7 @@ against the shared samples in `testdata/rm/`.
 - bpiwowar/zotero-remarkable-sync, `src/modules/remarkable/rmdoc.ts`
   (deleted filter): https://github.com/bpiwowar/zotero-remarkable-sync
 - giovi321 commits 2323622 (cPages, deleted) and 71615fd (object pageTags) in
-  the joagonca#4 branch, as summarised in the project's triage report.
+  the joagonca#4 branch.
 - juruen/rmapi `archive/file.go` (formatVersion 1 `Content`, which this
   package replaces on the export path).
 

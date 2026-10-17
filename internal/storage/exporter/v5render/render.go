@@ -146,7 +146,7 @@ func (t transform) apply(p rm.Point) (x, y float64) {
 	return float64(p.X) * t.scale, t.pageH - float64(p.Y)*t.scale
 }
 
-// transformFor ports pdf.go's transformFor (commit 430ac58), adding the
+// transformFor ports the old renderer's transformFor (commit 430ac58), adding the
 // Landscape flag as a second reason to turn the ink.
 func transformFor(opts Options) transform {
 	if opts.Landscape || opts.PageW > opts.PageH {
@@ -161,7 +161,7 @@ func transformFor(opts Options) transform {
 
 const (
 	minWidthPt         = 0.1 // floor so no stroke vanishes
-	defaultHighlightPx = 30  // pdf.go's highlighter width
+	defaultHighlightPx = 30  // the old renderer's highlighter width
 	sharpStrength      = 0.7
 )
 

@@ -192,8 +192,8 @@ func firstMove(t *testing.T, content []byte) (x, y float64) {
 }
 
 // TestKnownPoint checks the first point of test_v5.rm, (251.75104, 252.38867)
-// device px, against values worked out by hand (bc) from the triage report's
-// formulas with s = 72/226:
+// device px, against values worked out by hand (bc) from the mapping in
+// doc.go with s = 72/226:
 //
 //	portrait 447.292x596.389:  x = 251.75104*s = 80.2039,  y = 596.389 - 252.38867*s = 515.9824
 //	landscape 596.389x447.292: x = (1872-252.38867)*s = 515.9824, y = 447.292 - 251.75104*s = 367.0882
